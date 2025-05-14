@@ -5,58 +5,111 @@ import MonacoEditor from '@monaco-editor/react';
 import Sidebar from '../components/SideBar';
 import ChatBox from '../components/ChatBox';
 import FileExplorer from '../components/FileManager';
-import { Tldraw } from 'tldraw';
+import { Tldraw } from '@tldraw/tldraw';
+import '@tldraw/tldraw/tldraw.css';
 import axios from 'axios';
-import Panel from '../components/Panel';
+import _ from 'lodash';
+import UserList from '../components/UserList';
+import CodeRunner from '../components/CodeExecution/CodeRunner';
+import { getTemplateForFile } from '../utils/codeTemplates';
+import CopilotPanel from '../components/Copilot/CopilotPanel';
 
-let socket;
+const BACKEND_URL = 'http://localhost:8080';
 
 const Editor = () => {
   const { roomId } = useParams();
   const { state } = useLocation();
+  const socketRef = useRef(null);
   const [code, setCode] = useState('// Start typing...');
   const [users, setUsers] = useState([]);
   const [activeTab, setActiveTab] = useState('files');
   const [messages, setMessages] = useState([]);
   const [files, setFiles] = useState({});
   const [currentFile, setCurrentFile] = useState(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
+  // Socket initialization and event handling
   useEffect(() => {
-    socket = io('http://localhost:8080');
+    socketRef.current = io(BACKEND_URL);
+    const socket = socketRef.current;
 
-    socket.emit('join-room', { roomId, username: state?.username });
+    // Emit join room with username immediately when connecting
+    if (roomId && state?.username) {
+      socket.emit('join-room', {
+        roomId,
+        username: state.username
+      });
+
+      // Add current user to users list immediately
+      setUsers(prev => Array.from(new Set([...prev, state.username])));
+    }
 
     socket.on('update-user-list', (userList) => {
+      console.log('Received user list:', userList);
       setUsers(userList);
     });
 
-    socket.on('receive-message', ({ username, message }) => {
-      setMessages((prev) => [...prev, { username, message }]);
-    });
-
     socket.on('user-joined', ({ username }) => {
-      setMessages((prev) => [...prev, { username: 'System', message: `${username} joined the room` }]);
+      console.log('User joined:', username);
+      setUsers(prev => Array.from(new Set([...prev, username])));
     });
 
-    socket.on('user-left', () => {
-      setMessages((prev) => [...prev, { username: 'System', message: `A user left the room` }]);
+    socket.on('user-left', ({ username }) => {
+      console.log('User left:', username);
+      setUsers(prev => prev.filter(user => user !== username));
+    });
+
+    socket.on('receive-message', (data) => {
+      setMessages(prev => [...prev, data]);
+      if (activeTab !== 'chat') {
+        setUnreadCount(prev => prev + 1);
+      }
+    });
+
+    socket.on('code-change', ({ fileName, newCode }) => {
+      if (fileName === currentFile) {
+        setCode(newCode);
+      }
+      setFiles(prev => ({
+        ...prev,
+        [fileName]: newCode
+      }));
     });
 
     return () => {
-      socket.disconnect(); // Clean up the socket connection on unmount
+      socket.off('update-user-list');
+      socket.off('user-joined');
+      socket.off('user-left');
+      socket.off('receive-message');
+      socket.off('code-change');
+      socket.disconnect();
     };
-  }, [roomId, state?.username]);
+  }, [roomId, state?.username, activeTab, currentFile]);
 
   useEffect(() => {
     fetchFiles();
   }, []);
 
+  useEffect(() => {
+    if (activeTab === 'chat') {
+      setUnreadCount(0);
+    }
+  }, [activeTab]);
+
+  // Add this useEffect to load the last opened file
+  useEffect(() => {
+    const lastOpenedFile = localStorage.getItem('lastOpenedFile');
+    if (lastOpenedFile) {
+      handleFileClick(lastOpenedFile);
+    }
+  }, [files]); // Run when files are loaded
+
   const fetchFiles = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/api/files');
+      const response = await axios.get(`${BACKEND_URL}/api/files`);
       const filesData = {};
       for (const file of response.data.files) {
-        const contentRes = await axios.get(`http://localhost:8080/api/files/${file}`);
+        const contentRes = await axios.get(`${BACKEND_URL}/api/files/${file}`);
         filesData[file] = contentRes.data.content;
       }
       setFiles(filesData);
@@ -68,7 +121,7 @@ const Editor = () => {
   const handleFileClick = async (fileName) => {
     try {
       if (!files[fileName]) {
-        const response = await axios.get(`http://localhost:8080/api/files/${fileName}`);
+        const response = await axios.get(`${BACKEND_URL}/api/files/${fileName}`);
         setFiles((prev) => ({
           ...prev,
           [fileName]: response.data.content,
@@ -76,29 +129,43 @@ const Editor = () => {
       }
       setCurrentFile(fileName);
       setCode(files[fileName] || '// Start typing...');
+      localStorage.setItem('lastOpenedFile', fileName); // Save to localStorage
     } catch (error) {
       console.error('Error opening file:', error);
     }
   };
 
-  const handleAddNode = async (parentFolder, type) => {
-    const fileName = prompt(`Enter ${type} name:`);
-    if (!fileName) return;
-
+  const handleAddNode = async (fileName) => {
     try {
-      await axios.post('http://localhost:8080/api/files/save', {
-        filename: fileName,
-        content: '// Start typing...',
+      console.log('Creating new file:', fileName);
+      const template = getTemplateForFile(fileName);
+
+      const response = await axios.post(`${BACKEND_URL}/api/files`, {
+        name: fileName,
+        content: template
       });
-      await fetchFiles();
+
+      if (response.data.success) {
+        setFiles(prev => ({
+          ...prev,
+          [fileName]: response.data.content
+        }));
+
+        setCurrentFile(fileName);
+        setCode(response.data.content);
+        console.log('File created successfully:', fileName);
+      } else {
+        throw new Error(response.data.message);
+      }
     } catch (error) {
       console.error('Error creating file:', error);
+      alert('Failed to create file: ' + error.message);
     }
   };
 
   const handleDeleteNode = async (fileName) => {
     try {
-      await axios.delete(`http://localhost:8080/api/files/${fileName}`);
+      await axios.delete(`${BACKEND_URL}/api/files/${fileName}`);
       if (currentFile === fileName) {
         setCurrentFile(null);
         setCode('// Start typing...');
@@ -109,99 +176,158 @@ const Editor = () => {
     }
   };
 
-  const handleCodeChanges = async (value) => {
+  const handleCodeChanges = (value) => {
+    if (!currentFile || !socketRef.current) return;
+
     setCode(value);
-    if (currentFile) {
-      setFiles((prev) => ({
-        ...prev,
-        [currentFile]: value,
-      }));
+    setFiles((prev) => ({
+      ...prev,
+      [currentFile]: value,
+    }));
+
+    // Emit changes immediately
+    socketRef.current.emit('code-change', {
+      roomId,
+      fileName: currentFile,
+      newCode: value,
+    });
+
+    // Save to server with debounce
+    debouncedSave(currentFile, value);
+  };
+
+  const debouncedSave = useRef(
+    _.debounce(async (fileName, content) => {
       try {
-        await axios.post('http://localhost:8080/api/files/save', {
-          filename: currentFile,
-          content: value,
+        await axios.post(`${BACKEND_URL}/api/files/save`, {
+          filename: fileName,
+          content: content,
         });
-        socket.emit('code-change', { roomId, fileName: currentFile, newCode: value });
       } catch (error) {
         console.error('Error saving file:', error);
       }
+    }, 1000)
+  ).current;
+
+  const handleRunCode = async () => {
+    if (!currentFile || !code) return null;
+
+    try {
+      const fileExt = currentFile.split('.').pop();
+      const response = await axios.post(`${BACKEND_URL}/api/execute`, {
+        language: fileExt,
+        code: code
+      });
+
+      if (response.data.output) {
+        socketRef.current.emit('code-output', {
+          roomId,
+          output: response.data.output
+        });
+      }
+
+      return response; // Return the response so CodeRunner can access it
+    } catch (error) {
+      console.error('Error executing code:', error);
+      socketRef.current.emit('code-output', {
+        roomId,
+        output: `Error: ${error.message}`
+      });
+      throw error; // Throw the error so CodeRunner can handle it
     }
   };
-    const renderActiveTab = () => {
+
+  const renderActiveTab = () => {
     switch (activeTab) {
+      case 'users':
+        return (
+          <UserList 
+            socket={socketRef.current}
+            currentUser={state?.username}
+            users={[state?.username, ...users].filter(Boolean)}
+          />
+        );
       case 'files':
         return (
           <FileExplorer
-            files={files}
+            fileTree={Object.keys(files).map((name) => ({
+              name,
+              type: 'file',
+              content: files[name]
+            }))}
+            onFileClick={handleFileClick}
+            onAdd={handleAddNode}
+            onDelete={handleDeleteNode}
             currentFile={currentFile}
-            onFileClick={setCurrentFile}
-            onFileChange={handleCodeChanges}
           />
         );
-      case 'users':
-        return <div className="p-4"><h2>Connected Users</h2>{users.map(u => <div key={u}>{u}</div>)}</div>;
       case 'draw':
-        return <Tldraw />;
+        return (
+          <div className="w-full h-full bg-gray-800">
+            <Tldraw
+              persistenceKey={`drawing-${roomId}`}
+              className="h-full w-full"
+              autoFocus={false}
+            />
+          </div>
+        );
       case 'chat':
-        return <ChatBox socket={socket} roomId={roomId} username={state?.username} />;
-      case 'run':
-        return <div className="p-4">Run functionality coming soon...</div>;
+        return (
+          <ChatBox
+            socket={socketRef.current}
+            roomId={roomId}
+            username={state?.username}
+          />
+        );
+      case 'copilot':
+        return (
+          <CopilotPanel
+            currentFile={currentFile}
+            code={code}
+          />
+        );
       default:
         return null;
     }
   };
 
-
-  useEffect(() => {
-    if (!socket) return;
-
-    socket.on('code-change', ({ fileName, newCode }) => {
-      if (fileName === currentFile) {
-        setCode(newCode);
-      }
-      setFiles((prev) => ({
-        ...prev,
-        [fileName]: newCode,
-      }));
-    });
-
-    return () => socket.off('code-change');
-  }, [currentFile]);
-
   return (
     <div className="flex h-screen">
-      <Sidebar users={users} />
+      <Sidebar 
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        unreadCount={unreadCount}
+      />
       <div className="flex-1 flex">
-        <FileExplorer
-          fileTree={Object.keys(files).map((name) => ({
-            name,
-            type: 'file',
-            content: files[name],
-          }))}
-          onFileClick={handleFileClick}
-          onAdd={handleAddNode}
-          onDelete={handleDeleteNode}
-          currentFile={currentFile}
-        />
-        <div className="flex-1 flex flex-col">
-          <div className="bg-gray-800 text-white px-4 py-2">
-            {currentFile || 'No file selected'}
-          </div>
-          <MonacoEditor
-            height="calc(100vh - 20rem)"
-            defaultLanguage="javascript"
-            theme="vs-dark"
-            value={code}
-            onChange={handleCodeChanges}
-          />
-          <ChatBox
-            socket={socket}
-            roomId={roomId}
-            username={state?.username}
-            messages={messages}
-            setMessages={setMessages}
-          />
-        </div>
+        {activeTab === 'draw' ? (
+          renderActiveTab()
+        ) : (
+          <>
+            <div className="w-64 border-r border-gray-700">
+              {renderActiveTab()}
+            </div>
+            <div className="flex-1">
+              <CodeRunner 
+                currentFile={currentFile} 
+                code={code}
+                onRunCode={handleRunCode}
+              >
+                <MonacoEditor
+                  height="100%" // Changed from fixed height to 100%
+                  defaultLanguage="javascript"
+                  theme="vs-dark"
+                  value={code}
+                  onChange={handleCodeChanges}
+                  options={{
+                    minimap: { enabled: false },
+                    fontSize: 14,
+                    automaticLayout: true
+                  }}
+                />
+              </CodeRunner>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

@@ -1,2 +1,2 @@
 // Start typing...
-mfkkgtgt
+console.log("hehhehe")

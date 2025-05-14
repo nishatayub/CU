@@ -1,55 +1,72 @@
-import React from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
 
 const FileExplorer = ({ fileTree, onFileClick, onAdd, onDelete, currentFile }) => {
-  const renderTree = (nodes, path = []) => {
+  const [newFileName, setNewFileName] = useState('');
+
+  const handleAddFile = async () => {
+    const fileName = prompt('Enter file name (with extension):', 'newfile.js');
+    if (!fileName) return; // User cancelled
+
+    if (!fileName.includes('.')) {
+      alert('Please include a file extension (e.g., .js, .py, .java)');
+      return;
+    }
+
+    try {
+      await onAdd(fileName);
+      console.log('File created:', fileName);
+    } catch (error) {
+      console.error('Error creating file:', error);
+      alert('Failed to create file: ' + error.message);
+    }
+  };
+
+  const renderTree = (nodes) => {
+    if (!Array.isArray(nodes)) return null;
+
     return nodes.map((node, i) => (
-      <div key={i} className="ml-4 mt-1">
-        <div className={`flex items-center justify-between text-sm ${
-          currentFile === node.name ? 'bg-blue-600' : ''
+      <div key={`${node.name}-${i}`} className="ml-4 mt-1">
+        <div className={`flex items-center justify-between text-sm p-1 rounded ${
+          currentFile === node.name ? 'bg-blue-600' : 'hover:bg-gray-800'
         }`}>
           <span
-            className="cursor-pointer hover:underline flex-grow p-1"
+            className="cursor-pointer flex-grow p-1"
             onClick={() => node.type === 'file' && onFileClick(node.name)}
           >
-            {node.type === 'folder' ? '📁' : '📄'} {node.name}
+            {node.type === 'file' ? '📄' : '📁'} {node.name}
           </span>
-          <span className="text-xs space-x-1">
-            {node.type === 'folder' && (
-              <>
-                <button 
-                  className="px-2 py-1 bg-green-600 rounded"
-                  onClick={() => onAdd(node.name, 'file')}
-                >
-                  +File
-                </button>
-              </>
-            )}
+          <div className="flex space-x-2">
             <button 
-              className="px-2 py-1 bg-red-600 rounded"
+              className="px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-xs"
               onClick={() => onDelete(node.name)}
+              title="Delete"
             >
-              ❌
+              Delete
             </button>
-          </span>
+          </div>
         </div>
-        {node.type === 'folder' && renderTree(node.children, [...path, node.name])}
+        {node.type === 'folder' && renderTree(node.children)}
       </div>
     ));
   };
 
   return (
-    <div className="bg-gray-900 text-white p-3 h-screen overflow-y-auto w-64">
-      <div className="mb-2 font-bold flex justify-between items-center">
-        <span>📁 Files</span>
+    <div className="bg-gray-900 text-white p-4 h-full overflow-y-auto">
+      <div className="mb-4 flex justify-between items-center">
+        <h2 className="text-lg font-bold flex items-center gap-2">
+          <span>📁</span> Files
+        </h2>
         <button
-          onClick={() => onAdd(null, 'file')}
-          className="text-xs bg-green-600 px-2 py-1 rounded"
+          onClick={handleAddFile}
+          className="bg-green-600 hover:bg-green-700 px-3 py-1 rounded-lg text-sm flex items-center gap-1"
         >
-          + New File
+          <span>+</span> New File
         </button>
       </div>
-      {renderTree(fileTree)}
+      <div className="space-y-1">
+        {renderTree(fileTree)}
+      </div>
     </div>
   );
 };
