@@ -16,6 +16,24 @@ import CopilotPanel from '../components/Copilot/CopilotPanel';
 
 const BACKEND_URL = 'http://localhost:8080';
 
+// Add this helper function at the top of your file
+const getLanguageFromFileName = (fileName) => {
+  const extension = fileName.split('.').pop().toLowerCase();
+  const languageMap = {
+    'js': 'javascript',
+    'py': 'python',
+    'java': 'java',
+    'cpp': 'cpp',
+    'c': 'c',
+    'html': 'html',
+    'css': 'css',
+    'json': 'json',
+    'md': 'markdown',
+    'txt': 'plaintext'
+  };
+  return languageMap[extension] || 'plaintext';
+};
+
 const Editor = () => {
   const { roomId } = useParams();
   const { state } = useLocation();
@@ -104,12 +122,57 @@ const Editor = () => {
     }
   }, [files]); // Run when files are loaded
 
+  // Update this useEffect for file operations
+  useEffect(() => {
+    if (socketRef.current) {
+      socketRef.current.on('file-created', ({ fileName, content }) => {
+        console.log('Received file-created event:', { fileName, content });
+        // Immediately update files state with the new file
+        setFiles(prev => ({
+          ...prev,
+          [fileName]: content
+        }));
+      });
+
+      socketRef.current.on('file-deleted', ({ fileName }) => {
+        console.log('Received file deletion:', fileName);
+        setFiles(prev => {
+          const newFiles = { ...prev };
+          delete newFiles[fileName];
+          return newFiles;
+        });
+
+        if (currentFile === fileName) {
+          setCurrentFile(null);
+          setCode('');
+          localStorage.removeItem('lastOpenedFile');
+        }
+      });
+
+      socketRef.current.on('file-updated', ({ fileName, content }) => {
+        setFiles(prev => ({
+          ...prev,
+          [fileName]: content
+        }));
+        if (currentFile === fileName) {
+          setCode(content);
+        }
+      });
+
+      return () => {
+        socketRef.current.off('file-created');
+        socketRef.current.off('file-deleted');
+        socketRef.current.off('file-updated');
+      };
+    }
+  }, []); // Remove dependencies to prevent re-subscription
+
   const fetchFiles = async () => {
     try {
-      const response = await axios.get(`${BACKEND_URL}/api/files`);
+      const response = await axios.get(`${BACKEND_URL}/api/files/${roomId}`);
       const filesData = {};
       for (const file of response.data.files) {
-        const contentRes = await axios.get(`${BACKEND_URL}/api/files/${file}`);
+        const contentRes = await axios.get(`${BACKEND_URL}/api/files/${roomId}/${file}`);
         filesData[file] = contentRes.data.content;
       }
       setFiles(filesData);
@@ -137,44 +200,86 @@ const Editor = () => {
 
   const handleAddNode = async (fileName) => {
     try {
-      console.log('Creating new file:', fileName);
       const template = getTemplateForFile(fileName);
-
-      const response = await axios.post(`${BACKEND_URL}/api/files`, {
+      
+      const response = await axios.post(`${BACKEND_URL}/api/files/${roomId}`, {
         name: fileName,
         content: template
       });
 
       if (response.data.success) {
+        // Update local state
         setFiles(prev => ({
           ...prev,
           [fileName]: response.data.content
         }));
-
+        
+        // Immediately emit to all users in the room
+        socketRef.current.emit('file-created', {
+          roomId,
+          fileName,
+          content: response.data.content
+        });
+        
         setCurrentFile(fileName);
         setCode(response.data.content);
-        console.log('File created successfully:', fileName);
-      } else {
-        throw new Error(response.data.message);
+        
+        console.log('File created and broadcasted:', fileName);
       }
     } catch (error) {
       console.error('Error creating file:', error);
-      alert('Failed to create file: ' + error.message);
     }
   };
 
   const handleDeleteNode = async (fileName) => {
     try {
-      await axios.delete(`${BACKEND_URL}/api/files/${fileName}`);
-      if (currentFile === fileName) {
-        setCurrentFile(null);
-        setCode('// Start typing...');
+      if (!fileName || !roomId) {
+        console.error('Missing fileName or roomId:', { fileName, roomId });
+        return;
       }
-      await fetchFiles();
+
+      const response = await axios.delete(`${BACKEND_URL}/api/files/${roomId}/${fileName}`);
+
+      if (response.data.success) {
+        // Remove from files state
+        const newFiles = { ...files };
+        delete newFiles[fileName];
+        setFiles(newFiles);
+
+        // Clear editor if deleted file was open
+        if (currentFile === fileName) {
+          setCurrentFile(null);
+          setCode('');
+        }
+
+        // Always clear localStorage for this file
+        if (localStorage.getItem('lastOpenedFile') === fileName) {
+          localStorage.removeItem('lastOpenedFile');
+          console.log('Cleared localStorage for file:', fileName);
+        }
+
+        // Notify other users in the room
+        socketRef.current.emit('file-deleted', {
+          roomId,
+          fileName
+        });
+      }
     } catch (error) {
       console.error('Error deleting file:', error);
+      alert(`Failed to delete file: ${error.message}`);
     }
   };
+
+  // Add this useEffect to handle file cleanup on component unmount
+  useEffect(() => {
+    return () => {
+      // Cleanup function
+      const lastOpenedFile = localStorage.getItem('lastOpenedFile');
+      if (lastOpenedFile && !files[lastOpenedFile]) {
+        localStorage.removeItem('lastOpenedFile');
+      }
+    };
+  }, [files]);
 
   const handleCodeChanges = (value) => {
     if (!currentFile || !socketRef.current) return;
@@ -199,9 +304,16 @@ const Editor = () => {
   const debouncedSave = useRef(
     _.debounce(async (fileName, content) => {
       try {
-        await axios.post(`${BACKEND_URL}/api/files/save`, {
-          filename: fileName,
+        await axios.post(`${BACKEND_URL}/api/files/${roomId}`, {
+          name: fileName,
           content: content,
+        });
+        
+        // Notify other users in the room
+        socketRef.current.emit('file-updated', {
+          roomId,
+          fileName,
+          content
         });
       } catch (error) {
         console.error('Error saving file:', error);
@@ -259,6 +371,8 @@ const Editor = () => {
             onAdd={handleAddNode}
             onDelete={handleDeleteNode}
             currentFile={currentFile}
+            socket={socketRef.current}
+            roomId={roomId}
           />
         );
       case 'draw':
@@ -313,8 +427,8 @@ const Editor = () => {
                 onRunCode={handleRunCode}
               >
                 <MonacoEditor
-                  height="100%" // Changed from fixed height to 100%
-                  defaultLanguage="javascript"
+                  height="100%"
+                  language={currentFile ? getLanguageFromFileName(currentFile) : 'javascript'}
                   theme="vs-dark"
                   value={code}
                   onChange={handleCodeChanges}

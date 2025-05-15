@@ -1,8 +1,43 @@
-import React, { useState } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect } from 'react';
 
-const FileExplorer = ({ fileTree, onFileClick, onAdd, onDelete, currentFile }) => {
-  const [newFileName, setNewFileName] = useState('');
+const FileExplorer = ({ fileTree, onFileClick, onAdd, onDelete, currentFile, socket, roomId }) => {
+  const [files, setFiles] = useState(fileTree);
+
+  // Listen for real-time file updates
+  useEffect(() => {
+    if (socket) {
+      // Listen for new files being created
+      socket.on('file-created', ({ fileName, content }) => {
+        console.log('New file created:', fileName);
+        setFiles(prev => [...prev, {
+          name: fileName,
+          type: 'file',
+          content
+        }]);
+      });
+
+      // Listen for files being deleted
+      socket.on('file-deleted', ({ fileName }) => {
+        console.log('File deleted:', fileName);
+        // Immediately remove the file from the UI
+        setFiles(prev => prev.filter(file => file.name !== fileName));
+        // If it was the current file, clear it
+        if (currentFile === fileName) {
+          onFileClick(null);
+        }
+      });
+
+      return () => {
+        socket.off('file-created');
+        socket.off('file-deleted');
+      };
+    }
+  }, [socket, currentFile]);
+
+  // Update local files when fileTree prop changes
+  useEffect(() => {
+    setFiles(fileTree);
+  }, [fileTree]);
 
   const handleAddFile = async () => {
     const fileName = prompt('Enter file name (with extension):', 'newfile.js');
@@ -19,6 +54,23 @@ const FileExplorer = ({ fileTree, onFileClick, onAdd, onDelete, currentFile }) =
     } catch (error) {
       console.error('Error creating file:', error);
       alert('Failed to create file: ' + error.message);
+    }
+  };
+
+  const handleDelete = async (fileName) => {
+    if (window.confirm(`Are you sure you want to delete ${fileName}?`)) {
+      try {
+        await onDelete(fileName);
+        // Emit delete event to other users
+        socket.emit('file-deleted', {
+          roomId,
+          fileName
+        });
+        console.log('File deleted and broadcasted:', fileName);
+      } catch (error) {
+        console.error('Error deleting file:', error);
+        alert('Failed to delete file: ' + error.message);
+      }
     }
   };
 
@@ -39,7 +91,7 @@ const FileExplorer = ({ fileTree, onFileClick, onAdd, onDelete, currentFile }) =
           <div className="flex space-x-2">
             <button 
               className="px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-xs"
-              onClick={() => onDelete(node.name)}
+              onClick={() => handleDelete(node.name)}
               title="Delete"
             >
               Delete
@@ -65,7 +117,7 @@ const FileExplorer = ({ fileTree, onFileClick, onAdd, onDelete, currentFile }) =
         </button>
       </div>
       <div className="space-y-1">
-        {renderTree(fileTree)}
+        {renderTree(files)}
       </div>
     </div>
   );

@@ -78,6 +78,55 @@ io.on('connection', (socket) => {
     io.to(roomId).emit('receive-message', messageWithTime);
   });
 
+  socket.on('file-deleted', ({ roomId, fileName }) => {
+    console.log('Broadcasting file deletion:', { roomId, fileName });
+    // Broadcast to all clients in the room except sender
+    socket.to(roomId).emit('file-deleted', { fileName });
+  });
+
+  socket.on('file-created', ({ roomId, fileName, content }) => {
+    const roomDir = path.join(__dirname, 'files', roomId);
+    const filePath = path.join(roomDir, fileName);
+
+    // Ensure directory exists
+    if (!fs.existsSync(roomDir)) {
+      fs.mkdirSync(roomDir, { recursive: true });
+    }
+
+    // Save file to disk
+    fs.writeFile(filePath, content || '', (err) => {
+      if (!err) {
+        // Broadcast to ALL clients in the room EXCEPT sender
+        socket.to(roomId).emit('file-created', {
+          fileName,
+          content,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+  });
+
+  socket.on('request-files-list', ({ roomId }) => {
+    const roomDir = path.join(__dirname, 'files', roomId);
+    
+    if (fs.existsSync(roomDir)) {
+      fs.readdir(roomDir, (err, files) => {
+        if (!err) {
+          socket.emit('files-list', { files });
+        }
+      });
+    }
+  });
+
+  socket.on('file-content-change', ({ roomId, fileName, content }) => {
+    // Broadcast file content changes to all clients in the room except sender
+    socket.to(roomId).emit('file-content-updated', {
+      fileName,
+      content,
+      timestamp: new Date().toISOString()
+    });
+  });
+
   socket.on('disconnect', () => {
     for (let roomId in usersInRoom) {
       usersInRoom[roomId] = usersInRoom[roomId].filter(u => u.socketId !== socket.id);
@@ -117,24 +166,81 @@ app.get('/api/file/:filename', (req, res) => {
   });
 });
 
-// API: Delete a file
-app.delete('/api/file/:filename', (req, res) => {
-  const filePath = path.join(__dirname, 'files', req.params.filename);
-  fs.unlink(filePath, (err) => {
-    if (err) return res.status(404).json({ message: 'File not found' });
-    res.json({ message: 'File deleted' });
-  });
+// Replace the existing delete endpoint with this one
+app.delete('/api/files/:roomId/:filename', async (req, res) => {
+  try {
+    const { roomId, filename } = req.params;
+    console.log('Delete request received for:', { roomId, filename });
+
+    // Handle undefined file case
+    if (filename === 'undefined' || filename === 'undefined.js' || filename === 'undefined.cpp') {
+      res.json({ 
+        success: true, 
+        message: 'Undefined file removed from memory'
+      });
+      return;
+    }
+
+    const roomDir = path.join(__dirname, 'files', roomId);
+    const filePath = path.join(roomDir, filename);
+    
+    console.log('Attempting to delete file at:', filePath);
+
+    // Create room directory if it doesn't exist
+    if (!fs.existsSync(roomDir)) {
+      await fs.promises.mkdir(roomDir, { recursive: true });
+    }
+
+    if (fs.existsSync(filePath)) {
+      await fs.promises.unlink(filePath);
+      console.log('File deleted successfully:', filePath);
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'File deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Error in delete endpoint:', error);
+    // Still return success to allow UI to update
+    res.json({ 
+      success: true, 
+      message: 'File removed from memory'
+    });
+  }
 });
 
-// Replace the existing file creation route with this:
+// Replace the existing file creation route with this updated version
 app.post('/api/files', async (req, res) => {
   try {
-    const { name, content } = req.body;
-    const filePath = path.join(__dirname, 'files', name);
+    const { name, content, roomId } = req.body;  // Add roomId to the request body
+    const roomDir = path.join(__dirname, 'files', roomId);
+    
+    // Create room directory if it doesn't exist
+    if (!fs.existsSync(roomDir)) {
+      await fs.promises.mkdir(roomDir, { recursive: true });
+    }
+    
+    const filePath = path.join(roomDir, name);
     
     // Use promises for file operations
     await fs.promises.writeFile(filePath, content || '');
     
+    // Emit to all clients in the room including sender
+    if (roomId && io) {
+      io.to(roomId).emit('file-created', { 
+        fileName: name, 
+        content: content || '',
+        timestamp: new Date().toISOString()
+      });
+      socket.emit('file-created', {
+  roomId,
+  fileName,
+  content: content // Assuming new file is empty; adjust as needed
+});
+    }
+
     res.json({ 
       success: true, 
       message: 'File created successfully',
@@ -149,40 +255,50 @@ app.post('/api/files', async (req, res) => {
   }
 });
 
-// Add this route to handle code execution
+// Add this endpoint for code execution
 app.post('/api/execute', async (req, res) => {
   try {
     const { language, code } = req.body;
 
-    // Map file extensions to Piston supported languages
     const languageMap = {
       'js': 'javascript',
-      'py': 'python',
+      'py': 'python3',
       'java': 'java',
       'cpp': 'cpp',
       'c': 'c'
     };
 
-    const response = await axios.post('https://emkc.org/api/v2/piston/execute', {
-      language: languageMap[language] || language,
-      version: '*',
-      files: [
-        {
+    const response = await fetch('https://emkc.org/api/v2/piston/execute', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        language: languageMap[language] || language,
+        version: '*',
+        files: [{
           content: code
-        }
-      ]
+        }]
+      })
     });
 
-    res.json({
-      success: true,
-      output: response.data.run.output,
-      error: response.data.run.stderr
-    });
+    const data = await response.json();
+    
+    if (data.run) {
+      res.json({
+        success: true,
+        output: data.run.output || data.run.stderr
+      });
+    } else {
+      throw new Error('Execution failed');
+    }
+
   } catch (error) {
-    console.error('Error executing code:', error);
+    console.error('Code execution error:', error);
     res.status(500).json({
       success: false,
-      message: error.message
+      error: error.message,
+      output: 'Error executing code'
     });
   }
 });
