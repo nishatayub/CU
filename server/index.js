@@ -32,19 +32,27 @@ const io = new Server(server, {
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization']
   },
-  transports: ['websocket', 'polling']
+  path: '/socket.io/',
+  transports: ['websocket', 'polling'],
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  upgradeTimeout: 30000,
+  allowUpgrades: true,
+  cookie: false
 });
 
+// Track active rooms and their file lists
 const usersInRoom = {};
-const rooms = new Map(); // Add this at the top with other constants
+const rooms = new Map();
+const roomFiles = new Map();
 
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
-  socket.on('join-room', ({ roomId, username }) => {
+  socket.on('join-room', async ({ roomId, username }) => {
     socket.join(roomId);
-    socket.username = username; // Store username in socket
-    socket.roomId = roomId;    // Store roomId in socket
+    socket.username = username;
+    socket.roomId = roomId;
 
     if (!usersInRoom[roomId]) {
       usersInRoom[roomId] = [];
@@ -52,94 +60,113 @@ io.on('connection', (socket) => {
 
     usersInRoom[roomId].push({ socketId: socket.id, username });
 
-    // Send existing messages to the joining user
+    // Send existing messages and file list to the joining user
     const roomMessages = rooms.get(roomId) || [];
     socket.emit('chat-history', roomMessages);
+
+    // Get latest file list from database and broadcast
+    try {
+      const files = await File.find({ roomId });
+      const fileList = files.map(f => ({
+        fileName: f.fileName,
+        content: f.content,
+        updatedAt: f.updatedAt
+      }));
+      
+      // Store current file list in memory
+      roomFiles.set(roomId, fileList);
+      
+      // Send to all clients in room
+      io.to(roomId).emit('files-list-updated', { files: fileList });
+    } catch (error) {
+      console.error('Error getting files for room:', error);
+    }
 
     socket.to(roomId).emit('user-joined', { username });
     io.to(roomId).emit('update-user-list', usersInRoom[roomId]);
   });
 
-  // ✅ Add this to handle real-time code sync
-  socket.on('code-change', ({ roomId, newCode }) => {
-    socket.to(roomId).emit('code-change', { newCode });
-  });
-
-  socket.on('send-message', (messageData) => {
-    const { roomId, username, text, timestamp } = messageData;
-    
-    // Store message in room history
-    if (!rooms.has(roomId)) {
-      rooms.set(roomId, []);
-    }
-
-    const messageWithTime = {
-      roomId,
-      username,
-      text,
-      timestamp: timestamp || new Date().toISOString()
-    };
-
-    rooms.get(roomId).push(messageWithTime);
-
-    // Broadcast to everyone in the room (including sender)
-    io.to(roomId).emit('receive-message', messageWithTime);
-  });
-
-  socket.on('file-deleted', ({ roomId, fileName }) => {
-    console.log('Broadcasting file deletion:', { roomId, fileName });
-    // Broadcast to all clients in the room except sender
-    socket.to(roomId).emit('file-deleted', { fileName });
-  });
-
   socket.on('file-created', async ({ roomId, fileName, content }) => {
     try {
-      // Save to MongoDB
+      // First save to MongoDB
       const file = await File.create({
         roomId,
         fileName,
         content: content || '',
       });
 
-      // Broadcast to ALL clients in the room INCLUDING sender
-      io.to(roomId).emit('file-created', {
-        fileName,
+      // Update room's file list in memory
+      const roomFileList = roomFiles.get(roomId) || [];
+      roomFileList.push({
+        fileName: file.fileName,
         content: file.content,
-        timestamp: new Date().toISOString()
+        updatedAt: file.createdAt
+      });
+      roomFiles.set(roomId, roomFileList);
+
+      // Broadcast to ALL clients in the room
+      io.to(roomId).emit('file-created', {
+        fileName: file.fileName,
+        content: file.content,
+        updatedAt: file.createdAt
       });
 
-      // Also send a files-list update to all clients
-      const files = await File.find({ roomId });
-      io.to(roomId).emit('files-list', { 
-        files: files.map(f => f.fileName)
+      // Also send updated file list
+      io.to(roomId).emit('files-list-updated', {
+        files: roomFileList
       });
 
       console.log('File created and broadcasted:', { roomId, fileName });
     } catch (error) {
       console.error('Error creating file:', error);
-      socket.emit('file-error', { 
+      socket.emit('file-error', {
         error: 'Failed to create file',
         details: error.message
       });
     }
   });
 
-  socket.on('request-files-list', async ({ roomId }) => {
+  socket.on('file-deleted', async ({ roomId, fileName }) => {
     try {
-      const File = require('./models/file');
-      const files = await File.find({ roomId });
-      socket.emit('files-list', { 
-        files: files.map(f => f.fileName)
+      // Delete from MongoDB
+      await File.findOneAndDelete({ roomId, fileName });
+
+      // Update room's file list in memory
+      const roomFileList = roomFiles.get(roomId) || [];
+      const updatedFileList = roomFileList.filter(f => f.fileName !== fileName);
+      roomFiles.set(roomId, updatedFileList);
+
+      // Broadcast deletion to all clients
+      io.to(roomId).emit('file-deleted', { fileName });
+      
+      // Send updated file list
+      io.to(roomId).emit('files-list-updated', {
+        files: updatedFileList
       });
+
+      console.log('File deleted and broadcasted:', { roomId, fileName });
     } catch (error) {
-      console.error('Error getting files list:', error);
-      socket.emit('files-list', { files: [] });
+      console.error('Error deleting file:', error);
+      socket.emit('file-error', {
+        error: 'Failed to delete file',
+        details: error.message
+      });
     }
   });
 
-  socket.on('file-content-change', async ({ roomId, fileName, content }) => {
+  socket.on('file-content-change', ({ roomId, fileName, content }) => {
+    console.log('Received content change:', { roomId, fileName });
+    // Immediately broadcast to other clients for real-time sync
+    socket.to(roomId).emit('file-content-change', {
+      fileName,
+      content,
+      timestamp: Date.now()
+    });
+  });
+
+  socket.on('file-updated', async ({ roomId, fileName, content }) => {
     try {
-      // Update file in MongoDB
+      // Update file in MongoDB after debounce
       const file = await File.findOneAndUpdate(
         { roomId, fileName },
         { 
@@ -149,28 +176,40 @@ io.on('connection', (socket) => {
         { upsert: true, new: true }
       );
 
-      // Broadcast file content changes to all clients in the room
-      io.to(roomId).emit('file-content-updated', {
+      // Update room's file list in memory
+      const roomFileList = roomFiles.get(roomId) || [];
+      const fileIndex = roomFileList.findIndex(f => f.fileName === fileName);
+      if (fileIndex !== -1) {
+        roomFileList[fileIndex] = {
+          fileName: file.fileName,
+          content: file.content,
+          updatedAt: file.updatedAt
+        };
+      }
+
+      // Confirm save to other clients
+      socket.to(roomId).emit('file-updated', {
         fileName,
         content: file.content,
-        timestamp: new Date().toISOString()
+        updatedAt: file.updatedAt
       });
 
-      console.log('File content updated:', { roomId, fileName });
+      console.log('File saved to database:', { roomId, fileName });
     } catch (error) {
-      console.error('Error updating file content:', error);
+      console.error('Error saving file:', error);
       socket.emit('file-error', {
-        error: 'Failed to update file content',
+        error: 'Failed to save file',
         details: error.message
       });
     }
   });
 
   socket.on('disconnect', () => {
-    for (let roomId in usersInRoom) {
+    const roomId = socket.roomId;
+    if (roomId && usersInRoom[roomId]) {
       usersInRoom[roomId] = usersInRoom[roomId].filter(u => u.socketId !== socket.id);
       io.to(roomId).emit('update-user-list', usersInRoom[roomId]);
-      io.to(roomId).emit('user-left', socket.id);
+      io.to(roomId).emit('user-left', { username: socket.username });
     }
     console.log('User disconnected:', socket.id);
   });
