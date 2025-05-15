@@ -3,7 +3,7 @@ const http = require('http');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const { Server } = require('socket.io');
-const axios = require('axios');
+const File = require('./models/file');
 require('dotenv').config();
 const fileRoutes = require('./routes/files.js');
 
@@ -16,16 +16,23 @@ mongoose.connect(MONGODB_URI)
 const app = express();
 const server = http.createServer(app);
 
-app.use(cors());
+app.use(cors({
+  origin: ['https://cu-sandy.vercel.app', 'http://localhost:5173'],
+  methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'PATCH', 'DELETE'],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 app.use('/api/files', fileRoutes);
 
 const io = new Server(server, {
   cors: {
     origin: ['https://cu-sandy.vercel.app', 'http://localhost:5173'],
-    methods: ['GET', 'POST'],
-    credentials: true
+    methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'PATCH', 'DELETE'],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization']
   },
+  transports: ['websocket', 'polling']
 });
 
 const usersInRoom = {};
@@ -87,7 +94,6 @@ io.on('connection', (socket) => {
 
   socket.on('file-created', async ({ roomId, fileName, content }) => {
     try {
-      const File = require('./models/file');
       // Save to MongoDB
       const file = await File.create({
         roomId,
@@ -95,14 +101,26 @@ io.on('connection', (socket) => {
         content: content || '',
       });
 
-      // Broadcast to ALL clients in the room EXCEPT sender
-      socket.to(roomId).emit('file-created', {
+      // Broadcast to ALL clients in the room INCLUDING sender
+      io.to(roomId).emit('file-created', {
         fileName,
         content: file.content,
         timestamp: new Date().toISOString()
       });
+
+      // Also send a files-list update to all clients
+      const files = await File.find({ roomId });
+      io.to(roomId).emit('files-list', { 
+        files: files.map(f => f.fileName)
+      });
+
+      console.log('File created and broadcasted:', { roomId, fileName });
     } catch (error) {
       console.error('Error creating file:', error);
+      socket.emit('file-error', { 
+        error: 'Failed to create file',
+        details: error.message
+      });
     }
   });
 
@@ -119,13 +137,33 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('file-content-change', ({ roomId, fileName, content }) => {
-    // Broadcast file content changes to all clients in the room except sender
-    socket.to(roomId).emit('file-content-updated', {
-      fileName,
-      content,
-      timestamp: new Date().toISOString()
-    });
+  socket.on('file-content-change', async ({ roomId, fileName, content }) => {
+    try {
+      // Update file in MongoDB
+      const file = await File.findOneAndUpdate(
+        { roomId, fileName },
+        { 
+          content,
+          updatedAt: new Date()
+        },
+        { upsert: true, new: true }
+      );
+
+      // Broadcast file content changes to all clients in the room
+      io.to(roomId).emit('file-content-updated', {
+        fileName,
+        content: file.content,
+        timestamp: new Date().toISOString()
+      });
+
+      console.log('File content updated:', { roomId, fileName });
+    } catch (error) {
+      console.error('Error updating file content:', error);
+      socket.emit('file-error', {
+        error: 'Failed to update file content',
+        details: error.message
+      });
+    }
   });
 
   socket.on('disconnect', () => {
