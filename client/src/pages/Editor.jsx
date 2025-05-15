@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import MonacoEditor from '@monaco-editor/react';
-import Sidebar from '../components/SideBar';
+import Sidebar from '../components/Sidebar';
 import ChatBox from '../components/ChatBox';
 import FileExplorer from '../components/FileManager';
 import { Tldraw } from '@tldraw/tldraw';
