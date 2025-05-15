@@ -1,6 +1,4 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
 const http = require('http');
 const cors = require('cors');
 const mongoose = require('mongoose');
@@ -29,16 +27,6 @@ const io = new Server(server, {
     credentials: true
   },
 });
-
-// Use persistent storage path in production, local path in development
-const filesDir = process.env.NODE_ENV === 'production'
-  ? path.join('/data', 'files')
-  : path.join(__dirname, 'files');
-
-// Ensure directory exists
-if (!fs.existsSync(filesDir)) {
-  fs.mkdirSync(filesDir, { recursive: true });
-}
 
 const usersInRoom = {};
 const rooms = new Map(); // Add this at the top with other constants
