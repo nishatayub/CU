@@ -3,10 +3,17 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const cors = require('cors');
+const mongoose = require('mongoose');
 const { Server } = require('socket.io');
 const axios = require('axios');
 require('dotenv').config();
 const fileRoutes = require('./routes/files.js');
+
+// Connect to MongoDB
+const MONGODB_URI = process.env.MONGODB_URI ;
+mongoose.connect(MONGODB_URI)
+  .then(() => console.log('Connected to MongoDB'))
+  .catch(err => console.error('MongoDB connection error:', err));
 
 const app = express();
 const server = http.createServer(app);
@@ -23,9 +30,14 @@ const io = new Server(server, {
   },
 });
 
-const filesDir = path.join(__dirname, 'files');
+// Use persistent storage path in production, local path in development
+const filesDir = process.env.NODE_ENV === 'production'
+  ? path.join('/data', 'files')
+  : path.join(__dirname, 'files');
+
+// Ensure directory exists
 if (!fs.existsSync(filesDir)) {
-  fs.mkdirSync(filesDir);
+  fs.mkdirSync(filesDir, { recursive: true });
 }
 
 const usersInRoom = {};
