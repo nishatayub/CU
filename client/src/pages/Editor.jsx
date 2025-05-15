@@ -14,7 +14,9 @@ import CodeRunner from '../components/CodeExecution/CodeRunner';
 import { getTemplateForFile } from '../utils/codeTemplates';
 import CopilotPanel from '../components/Copilot/CopilotPanel';
 
-const BACKEND_URL = 'http://localhost:8080';
+const BACKEND_URL = import.meta.env.PROD 
+  ? 'https://cu-669q.onrender.com'
+  : 'http://localhost:8080';
 
 // Add this helper function at the top of your file
 const getLanguageFromFileName = (fileName) => {
@@ -48,7 +50,13 @@ const Editor = () => {
 
   // Socket initialization and event handling
   useEffect(() => {
-    socketRef.current = io(BACKEND_URL);
+    socketRef.current = io(BACKEND_URL, {
+      withCredentials: true,
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
+    });
     const socket = socketRef.current;
 
     // Emit join room with username immediately when connecting
