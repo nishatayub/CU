@@ -50,13 +50,7 @@ const Editor = () => {
 
   // Socket initialization and event handling
   useEffect(() => {
-    socketRef.current = io(BACKEND_URL, {
-      withCredentials: true,
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000
-    });
+    socketRef.current = io(BACKEND_URL);
     const socket = socketRef.current;
 
     // Emit join room with username immediately when connecting
