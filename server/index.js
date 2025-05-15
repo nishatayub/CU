@@ -17,9 +17,13 @@ app.use('/api/files', fileRoutes);
 
 const io = new Server(server, {
   cors: {
-    origin: 'http://localhost:5173',
-    methods: ['GET', 'POST'],
+    origin: ['https://cu-sandy.vercel.app', 'http://localhost:5173'],
+    methods: ['GET', 'POST', 'OPTIONS'],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization']
   },
+  allowEIO3: true,
+  transports: ['websocket', 'polling']
 });
 
 const filesDir = path.join(__dirname, 'files');
