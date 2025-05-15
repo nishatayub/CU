@@ -6,37 +6,78 @@ const FileExplorer = ({ fileTree, onFileClick, onAdd, onDelete, currentFile, soc
   // Listen for real-time file updates
   useEffect(() => {
     if (socket) {
-      // Listen for new files being created
-      socket.on('file-created', ({ fileName, content }) => {
-        console.log('New file created:', fileName);
-        setFiles(prev => [...prev, {
-          name: fileName,
+      // Listen for file list updates
+      socket.on('files-list-updated', ({ files }) => {
+        console.log('Received files list update:', files);
+        setFiles(files.map(file => ({
+          name: file.fileName,
           type: 'file',
-          content
-        }]);
+          content: file.content,
+          updatedAt: file.updatedAt
+        })).sort((a, b) => a.name.localeCompare(b.name)));
+      });
+
+      // Listen for new files being created
+      socket.on('file-created', ({ fileName, content, updatedAt }) => {
+        console.log('New file created:', fileName);
+        setFiles(prev => {
+          // Check if file already exists
+          const exists = prev.some(file => file.name === fileName);
+          if (exists) return prev;
+
+          return [...prev, {
+            name: fileName,
+            type: 'file',
+            content,
+            updatedAt
+          }].sort((a, b) => a.name.localeCompare(b.name)); // Keep files sorted
+        });
       });
 
       // Listen for files being deleted
       socket.on('file-deleted', ({ fileName }) => {
         console.log('File deleted:', fileName);
-        // Immediately remove the file from the UI
         setFiles(prev => prev.filter(file => file.name !== fileName));
-        // If it was the current file, clear it
         if (currentFile === fileName) {
           onFileClick(null);
         }
       });
 
+      // Listen for file updates
+      socket.on('file-content-updated', ({ fileName, content, updatedAt }) => {
+        console.log('File content updated:', fileName);
+        setFiles(prev => prev.map(file => {
+          if (file.name === fileName) {
+            return { ...file, content, updatedAt };
+          }
+          return file;
+        }));
+      });
+
+      // Listen for file errors
+      socket.on('file-error', ({ error, details }) => {
+        console.error('File operation error:', error, details);
+        alert(`Error: ${details}`);
+      });
+
+      // Initial file list request
+      socket.emit('join-room', { roomId }); // This will trigger files-list-updated
+
       return () => {
+        socket.off('files-list-updated');
         socket.off('file-created');
         socket.off('file-deleted');
+        socket.off('file-content-updated');
+        socket.off('file-error');
       };
     }
-  }, [socket, currentFile]);
+  }, [socket, currentFile, roomId, onFileClick]);
 
   // Update local files when fileTree prop changes
   useEffect(() => {
-    setFiles(fileTree);
+    if (fileTree.length > 0) {
+      setFiles(fileTree);
+    }
   }, [fileTree]);
 
   const handleAddFile = async () => {
@@ -49,8 +90,14 @@ const FileExplorer = ({ fileTree, onFileClick, onAdd, onDelete, currentFile, soc
     }
 
     try {
+      // First verify file doesn't exist
+      if (files.some(file => file.name === fileName)) {
+        alert('A file with this name already exists');
+        return;
+      }
+
       await onAdd(fileName);
-      console.log('File created:', fileName);
+      console.log('File creation requested:', fileName);
     } catch (error) {
       console.error('Error creating file:', error);
       alert('Failed to create file: ' + error.message);
@@ -61,12 +108,12 @@ const FileExplorer = ({ fileTree, onFileClick, onAdd, onDelete, currentFile, soc
     if (window.confirm(`Are you sure you want to delete ${fileName}?`)) {
       try {
         await onDelete(fileName);
-        // Emit delete event to other users
+        // Emit delete event
         socket.emit('file-deleted', {
           roomId,
           fileName
         });
-        console.log('File deleted and broadcasted:', fileName);
+        console.log('File deletion requested:', fileName);
       } catch (error) {
         console.error('Error deleting file:', error);
         alert('Failed to delete file: ' + error.message);
@@ -77,8 +124,8 @@ const FileExplorer = ({ fileTree, onFileClick, onAdd, onDelete, currentFile, soc
   const renderTree = (nodes) => {
     if (!Array.isArray(nodes)) return null;
 
-    return nodes.map((node, i) => (
-      <div key={`${node.name}-${i}`} className="ml-4 mt-1">
+    return nodes.map((node) => (
+      <div key={node.name} className="ml-4 mt-1">
         <div className={`flex items-center justify-between text-sm p-1 rounded ${
           currentFile === node.name ? 'bg-blue-600' : 'hover:bg-gray-800'
         }`}>

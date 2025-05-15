@@ -6,11 +6,18 @@ const File = require('../models/file');
 router.get('/:roomId', async (req, res) => {
   try {
     const { roomId } = req.params;
-    const files = await File.find({ roomId });
-    res.json({ files: files.map(f => f.fileName) });
+    const files = await File.getByRoom(roomId);
+    res.json({ 
+      success: true,
+      files: files.map(f => f.toFileInfo())
+    });
   } catch (error) {
     console.error('Error getting files:', error);
-    res.status(500).json({ message: 'Error getting files' });
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get files',
+      error: error.message
+    });
   }
 });
 
@@ -19,13 +26,25 @@ router.get('/:roomId/:filename', async (req, res) => {
   try {
     const { roomId, filename } = req.params;
     const file = await File.findOne({ roomId, fileName: filename });
+    
     if (!file) {
-      return res.status(404).json({ message: 'File not found' });
+      return res.status(404).json({
+        success: false,
+        message: 'File not found'
+      });
     }
-    res.json({ content: file.content });
+    
+    res.json({
+      success: true,
+      ...file.toFileInfo()
+    });
   } catch (error) {
     console.error('Error getting file:', error);
-    res.status(500).json({ message: 'Error getting file' });
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get file',
+      error: error.message
+    });
   }
 });
 
@@ -34,12 +53,19 @@ router.post('/:roomId', async (req, res) => {
   try {
     const { roomId } = req.params;
     const { name: fileName, content } = req.body;
+
+    if (!fileName) {
+      return res.status(400).json({
+        success: false,
+        message: 'File name is required'
+      });
+    }
     
     const file = await File.findOneAndUpdate(
       { roomId, fileName },
       { 
         content,
-        updatedAt: new Date()
+        $setOnInsert: { createdAt: new Date() }
       },
       { 
         upsert: true,
@@ -51,13 +77,14 @@ router.post('/:roomId', async (req, res) => {
     res.json({
       success: true,
       message: 'File saved successfully',
-      content: file.content
+      ...file.toFileInfo()
     });
   } catch (error) {
     console.error('Error saving file:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to save file: ' + error.message
+      message: 'Failed to save file',
+      error: error.message
     });
   }
 });
@@ -78,14 +105,14 @@ router.delete('/:roomId/:filename', async (req, res) => {
     res.json({
       success: true,
       message: 'File deleted successfully',
-      deletedFile: filename,
-      clearStorage: true
+      ...result.toFileInfo()
     });
   } catch (error) {
     console.error('Error deleting file:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to delete file: ' + error.message
+      message: 'Failed to delete file',
+      error: error.message
     });
   }
 });

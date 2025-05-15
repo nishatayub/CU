@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import MonacoEditor from '@monaco-editor/react';
@@ -43,72 +43,208 @@ const Editor = () => {
   const [code, setCode] = useState('// Start typing...');
   const [users, setUsers] = useState([]);
   const [activeTab, setActiveTab] = useState('files');
-  const [messages, setMessages] = useState([]);
   const [files, setFiles] = useState({});
   const [currentFile, setCurrentFile] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  // Create persistent debounced save function
+  const debouncedSaveRef = useRef();
+  
+  // Initialize debounced save functionality
+  useEffect(() => {
+    debouncedSaveRef.current = _.debounce(async (fileName, content) => {
+      if (!fileName || !roomId) return;
+      try {
+        await axios.post(`${BACKEND_URL}/api/files/${roomId}`, {
+          name: fileName,
+          content: content,
+        });
+        
+        // Notify other users in the room
+        socketRef.current?.emit('file-updated', {
+          roomId,
+          fileName,
+          content
+        });
+      } catch (error) {
+        console.error('Error saving file:', error);
+      }
+    }, 1000);
+
+    return () => {
+      if (debouncedSaveRef.current) {
+        debouncedSaveRef.current.cancel();
+      }
+    };
+  }, [roomId]);
+
+  // Wrapper function to call the debounced save
+  const saveToServer = useCallback((fileName, content) => {
+    if (debouncedSaveRef.current) {
+      debouncedSaveRef.current(fileName, content);
+    }
+  }, []);
+
+  const fetchFiles = useCallback(async () => {
+    if (!roomId) return;
+    try {
+      const response = await axios.get(`${BACKEND_URL}/api/files/${roomId}`);
+      const filesData = {};
+      const fetchPromises = response.data.files.map(async (file) => {
+        try {
+          const contentRes = await axios.get(`${BACKEND_URL}/api/files/${roomId}/${file}`);
+          filesData[file] = contentRes.data.content;
+        } catch (error) {
+          console.error(`Error fetching content for ${file}:`, error);
+          filesData[file] = '// Error loading file content';
+        }
+      });
+      
+      await Promise.all(fetchPromises);
+      setFiles(filesData);
+    } catch (error) {
+      console.error('Error fetching files:', error);
+    }
+  }, [roomId]);
+
+
+
+  const handleFileClick = useCallback(async (fileName) => {
+    try {
+      let fileContent = files[fileName];
+      
+      if (!fileContent) {
+        // File not in local state, fetch it
+        const response = await axios.get(`${BACKEND_URL}/api/files/${roomId}/${fileName}`);
+        fileContent = response.data.content;
+        
+        // Update files state
+        setFiles(prev => ({
+          ...prev,
+          [fileName]: fileContent
+        }));
+      }
+
+      setCurrentFile(fileName);
+      setCode(fileContent);
+      localStorage.setItem('lastOpenedFile', fileName);
+      
+      // Emit event to notify other users
+      socketRef.current?.emit('file-opened', { roomId, fileName });
+    } catch (error) {
+      console.error('Error opening file:', error);
+    }
+  }, [files, roomId]);
+
+  // Then define effects
+  useEffect(() => {
+    if (roomId) {
+      fetchFiles();
+    }
+  }, [roomId, fetchFiles]);
+
   // Socket initialization and event handling
   useEffect(() => {
-    socketRef.current = io(BACKEND_URL);
+    // Initialize socket connection
+    socketRef.current = io(BACKEND_URL, {
+      withCredentials: true,
+      transports: ['websocket', 'polling'],
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 20000,
+      path: '/socket.io/', // Explicitly set the socket.io path
+      forceNew: true // Force a new connection
+    });
+
     const socket = socketRef.current;
 
-    // Emit join room with username immediately when connecting
+    // Clean up any existing listeners to prevent duplicates
+    socket.removeAllListeners();
+
+    socket.on('connect', () => {
+      console.log('Connected to server');
+      if (roomId && state?.username) {
+        socket.emit('join-room', { roomId, username: state.username });
+      }
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('Connection error:', error);
+    });
+
     if (roomId && state?.username) {
       socket.emit('join-room', {
         roomId,
         username: state.username
       });
-
-      // Add current user to users list immediately
       setUsers(prev => Array.from(new Set([...prev, state.username])));
     }
 
-    socket.on('update-user-list', (userList) => {
-      console.log('Received user list:', userList);
-      setUsers(userList);
+    // File-related socket events
+    socket.on('files-list-updated', ({ files }) => {
+      console.log('Received files list update');
+      const filesData = {};
+      files.forEach(file => {
+        filesData[file.fileName] = file.content;
+      });
+      setFiles(filesData);
     });
 
-    socket.on('user-joined', ({ username }) => {
-      console.log('User joined:', username);
-      setUsers(prev => Array.from(new Set([...prev, username])));
-    });
-
-    socket.on('user-left', ({ username }) => {
-      console.log('User left:', username);
-      setUsers(prev => prev.filter(user => user !== username));
-    });
-
-    socket.on('receive-message', (data) => {
-      setMessages(prev => [...prev, data]);
-      if (activeTab !== 'chat') {
-        setUnreadCount(prev => prev + 1);
-      }
-    });
-
-    socket.on('code-change', ({ fileName, newCode }) => {
-      if (fileName === currentFile) {
-        setCode(newCode);
-      }
+    socket.on('file-created', ({ fileName, content }) => {
+      console.log('Received new file:', fileName);
       setFiles(prev => ({
         ...prev,
-        [fileName]: newCode
+        [fileName]: content
       }));
     });
 
+    socket.on('file-deleted', ({ fileName }) => {
+      console.log('File deleted:', fileName);
+      setFiles(prev => {
+        const newFiles = { ...prev };
+        delete newFiles[fileName];
+        return newFiles;
+      });
+
+      if (currentFile === fileName) {
+        setCurrentFile(null);
+        setCode('');
+        localStorage.removeItem('lastOpenedFile');
+      }
+    });
+
+    // Listen for both immediate updates and saved updates
+    socket.on('file-content-change', ({ fileName, content }) => {
+      console.log('Received real-time update:', fileName);
+      setFiles(prev => ({
+        ...prev,
+        [fileName]: content
+      }));
+      if (currentFile === fileName && content !== code) {
+        setCode(content);
+      }
+    });
+
+    socket.on('file-updated', ({ fileName, content }) => {
+      console.log('Received saved update:', fileName);
+      setFiles(prev => ({
+        ...prev,
+        [fileName]: content
+      }));
+      if (currentFile === fileName && content !== code) {
+        setCode(content);
+      }
+    });
+
     return () => {
-      socket.off('update-user-list');
-      socket.off('user-joined');
-      socket.off('user-left');
-      socket.off('receive-message');
-      socket.off('code-change');
+      socket.off('files-list-updated');
+      socket.off('file-created');
+      socket.off('file-deleted');
+      socket.off('file-content-change');
+      socket.off('file-updated');
       socket.disconnect();
     };
-  }, [roomId, state?.username, activeTab, currentFile]);
-
-  useEffect(() => {
-    fetchFiles();
-  }, []);
+  }, [roomId, state?.username, currentFile, code]);
 
   useEffect(() => {
     if (activeTab === 'chat') {
@@ -119,112 +255,40 @@ const Editor = () => {
   // Add this useEffect to load the last opened file
   useEffect(() => {
     const lastOpenedFile = localStorage.getItem('lastOpenedFile');
-    if (lastOpenedFile) {
+    if (lastOpenedFile && files[lastOpenedFile]) {
       handleFileClick(lastOpenedFile);
     }
-  }, [files]); // Run when files are loaded
-
-  // Update this useEffect for file operations
-  useEffect(() => {
-    if (socketRef.current) {
-      socketRef.current.on('file-created', ({ fileName, content }) => {
-        console.log('Received file-created event:', { fileName, content });
-        // Immediately update files state with the new file
-        setFiles(prev => ({
-          ...prev,
-          [fileName]: content
-        }));
-      });
-
-      socketRef.current.on('file-deleted', ({ fileName }) => {
-        console.log('Received file deletion:', fileName);
-        setFiles(prev => {
-          const newFiles = { ...prev };
-          delete newFiles[fileName];
-          return newFiles;
-        });
-
-        if (currentFile === fileName) {
-          setCurrentFile(null);
-          setCode('');
-          localStorage.removeItem('lastOpenedFile');
-        }
-      });
-
-      socketRef.current.on('file-updated', ({ fileName, content }) => {
-        setFiles(prev => ({
-          ...prev,
-          [fileName]: content
-        }));
-        if (currentFile === fileName) {
-          setCode(content);
-        }
-      });
-
-      return () => {
-        socketRef.current.off('file-created');
-        socketRef.current.off('file-deleted');
-        socketRef.current.off('file-updated');
-      };
-    }
-  }, []); // Remove dependencies to prevent re-subscription
-
-  const fetchFiles = async () => {
-    try {
-      const response = await axios.get(`${BACKEND_URL}/api/files/${roomId}`);
-      const filesData = {};
-      for (const file of response.data.files) {
-        const contentRes = await axios.get(`${BACKEND_URL}/api/files/${roomId}/${file}`);
-        filesData[file] = contentRes.data.content;
-      }
-      setFiles(filesData);
-    } catch (error) {
-      console.error('Error fetching files:', error);
-    }
-  };
-
-  const handleFileClick = async (fileName) => {
-    try {
-      if (!files[fileName]) {
-        const response = await axios.get(`${BACKEND_URL}/api/files/${fileName}`);
-        setFiles((prev) => ({
-          ...prev,
-          [fileName]: response.data.content,
-        }));
-      }
-      setCurrentFile(fileName);
-      setCode(files[fileName] || '// Start typing...');
-      localStorage.setItem('lastOpenedFile', fileName); // Save to localStorage
-    } catch (error) {
-      console.error('Error opening file:', error);
-    }
-  };
+  }, [files, handleFileClick]); // Include handleFileClick in dependencies
 
   const handleAddNode = async (fileName) => {
     try {
       const template = getTemplateForFile(fileName);
       
+      // First update MongoDB through the API
       const response = await axios.post(`${BACKEND_URL}/api/files/${roomId}`, {
         name: fileName,
-        content: template
+        content: template,
+        roomId
       });
 
       if (response.data.success) {
-        // Update local state
+        // Update local state immediately
+        const fileContent = response.data.content || template;
         setFiles(prev => ({
           ...prev,
-          [fileName]: response.data.content
+          [fileName]: fileContent
         }));
         
-        // Immediately emit to all users in the room
-        socketRef.current.emit('file-created', {
+        // Emit socket event for real-time sync
+        socketRef.current?.emit('file-created', {
           roomId,
           fileName,
-          content: response.data.content
+          content: fileContent
         });
         
+        // Set as current file and update editor
         setCurrentFile(fileName);
-        setCode(response.data.content);
+        setCode(fileContent);
         
         console.log('File created and broadcasted:', fileName);
       }
@@ -244,27 +308,26 @@ const Editor = () => {
 
       if (response.data.success) {
         // Remove from files state
-        const newFiles = { ...files };
-        delete newFiles[fileName];
-        setFiles(newFiles);
+        setFiles(prev => {
+          const newFiles = { ...prev };
+          delete newFiles[fileName];
+          return newFiles;
+        });
 
         // Clear editor if deleted file was open
         if (currentFile === fileName) {
           setCurrentFile(null);
           setCode('');
-        }
-
-        // Always clear localStorage for this file
-        if (localStorage.getItem('lastOpenedFile') === fileName) {
           localStorage.removeItem('lastOpenedFile');
-          console.log('Cleared localStorage for file:', fileName);
         }
 
-        // Notify other users in the room
-        socketRef.current.emit('file-deleted', {
+        // Notify other users
+        socketRef.current?.emit('file-deleted', {
           roomId,
           fileName
         });
+        
+        console.log('File deleted and broadcasted:', fileName);
       }
     } catch (error) {
       console.error('Error deleting file:', error);
@@ -283,45 +346,26 @@ const Editor = () => {
     };
   }, [files]);
 
-  const handleCodeChanges = (value) => {
+  const handleCodeChanges = useCallback((value) => {
     if (!currentFile || !socketRef.current) return;
 
+    // Update local state
     setCode(value);
-    setFiles((prev) => ({
+    setFiles(prev => ({
       ...prev,
       [currentFile]: value,
     }));
 
-    // Emit changes immediately
-    socketRef.current.emit('code-change', {
+    // Emit code change immediately for real-time sync
+    socketRef.current.emit('file-content-change', {
       roomId,
       fileName: currentFile,
-      newCode: value,
+      content: value,
     });
 
-    // Save to server with debounce
-    debouncedSave(currentFile, value);
-  };
-
-  const debouncedSave = useRef(
-    _.debounce(async (fileName, content) => {
-      try {
-        await axios.post(`${BACKEND_URL}/api/files/${roomId}`, {
-          name: fileName,
-          content: content,
-        });
-        
-        // Notify other users in the room
-        socketRef.current.emit('file-updated', {
-          roomId,
-          fileName,
-          content
-        });
-      } catch (error) {
-        console.error('Error saving file:', error);
-      }
-    }, 1000)
-  ).current;
+    // Save to server with debounce (this will emit file-updated event)
+    saveToServer(currentFile, value);
+  }, [currentFile, roomId, saveToServer]);
 
   const handleRunCode = async () => {
     if (!currentFile || !code) return null;
