@@ -257,7 +257,14 @@ app.post('/api/execute', async (req, res) => {
       'py': 'python3',
       'java': 'java',
       'cpp': 'cpp',
-      'c': 'c'
+      'c': 'c',
+      'ts': 'typescript',
+      'go': 'go',
+      'rb': 'ruby',
+      'php': 'php',
+      'rs': 'rust',
+      'kt': 'kotlin',
+      'swift': 'swift'
     };
 
     const response = await fetch('https://emkc.org/api/v2/piston/execute', {

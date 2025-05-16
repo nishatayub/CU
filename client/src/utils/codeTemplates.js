@@ -53,7 +53,74 @@ int main() {
 <body>
     <h1>Hello World!</h1>
 </body>
-</html>`
+</html>`,
+
+  ts: `// TypeScript Template
+function add(a: number, b: number): number {
+  return a + b;
+}
+
+console.log('Hello World!');
+console.log(add(5, 3));`,
+
+  go: `// Go Template
+package main
+import "fmt"
+
+func add(a int, b int) int {
+    return a + b
+}
+
+func main() {
+    fmt.Println("Hello World!")
+    fmt.Println(add(5, 3))
+}`,
+
+  rb: `# Ruby Template
+def add(a, b)
+  a + b
+end
+
+puts 'Hello World!'
+puts add(5, 3)
+`,
+
+  php: `<?php
+// PHP Template
+function add($a, $b) {
+    return $a + $b;
+}
+echo "Hello World!\n";
+echo add(5, 3);
+?>`,
+
+  rs: `// Rust Template
+fn add(a: i32, b: i32) -> i32 {
+    a + b
+}
+
+fn main() {
+    println!("Hello World!");
+    println!("{}", add(5, 3));
+}`,
+
+  kt: `// Kotlin Template
+fun add(a: Int, b: Int): Int = a + b
+
+fun main() {
+    println("Hello World!")
+    println(add(5, 3))
+}`,
+
+  swift: `// Swift Template
+func add(_ a: Int, _ b: Int) -> Int {
+    return a + b
+}
+
+print("Hello World!")
+print(add(5, 3))
+`,
+
 };
 
 export const getTemplateForFile = (fileName) => {
