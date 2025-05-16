@@ -89,18 +89,11 @@ const Editor = () => {
     if (!roomId) return;
     try {
       const response = await axios.get(`${BACKEND_URL}/api/files/${roomId}`);
+      // response.data.files is an array of { fileName, content, ... }
       const filesData = {};
-      const fetchPromises = response.data.files.map(async (file) => {
-        try {
-          const contentRes = await axios.get(`${BACKEND_URL}/api/files/${roomId}/${file}`);
-          filesData[file] = contentRes.data.content;
-        } catch (error) {
-          console.error(`Error fetching content for ${file}:`, error);
-          filesData[file] = '// Error loading file content';
-        }
+      response.data.files.forEach(file => {
+        filesData[file.fileName] = file.content;
       });
-      
-      await Promise.all(fetchPromises);
       setFiles(filesData);
     } catch (error) {
       console.error('Error fetching files:', error);
@@ -172,13 +165,9 @@ const Editor = () => {
       console.error('Connection error:', error);
     });
 
-    if (roomId && state?.username) {
-      socket.emit('join-room', {
-        roomId,
-        username: state.username
-      });
-      setUsers(prev => Array.from(new Set([...prev, state.username])));
-    }
+    socket.on('update-user-list', (userList) => {
+      setUsers(userList.map(u => u.username));
+    });
 
     // File-related socket events
     socket.on('files-list-updated', ({ files }) => {
@@ -236,15 +225,23 @@ const Editor = () => {
       }
     });
 
+    // --- CHAT NOTIFICATION HANDLER ---
+    socket.on('chat-notification', () => {
+      // Only increment unread if not in chat tab
+      setUnreadCount(prev => (activeTab !== 'chat' ? prev + 1 : prev));
+      // Optionally, show a toast or browser notification here
+    });
+
     return () => {
       socket.off('files-list-updated');
       socket.off('file-created');
       socket.off('file-deleted');
       socket.off('file-content-change');
       socket.off('file-updated');
+      socket.off('chat-notification');
       socket.disconnect();
     };
-  }, [roomId, state?.username, currentFile, code]);
+  }, [roomId, state?.username, currentFile, code, activeTab]);
 
   useEffect(() => {
     if (activeTab === 'chat') {

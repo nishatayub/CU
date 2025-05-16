@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 const FileExplorer = ({ fileTree, onFileClick, onAdd, onDelete, currentFile, socket, roomId }) => {
-  const [files, setFiles] = useState(fileTree);
+  const [files, setFiles] = useState(Array.isArray(fileTree) ? fileTree : []);
 
   // Listen for real-time file updates
   useEffect(() => {
@@ -9,8 +9,15 @@ const FileExplorer = ({ fileTree, onFileClick, onAdd, onDelete, currentFile, soc
       // Listen for file list updates
       socket.on('files-list-updated', ({ files }) => {
         console.log('Received files list update:', files);
-        setFiles(files.map(file => ({
-          name: file.fileName,
+        // Defensive: ensure files is always an array
+        const fileArr = Array.isArray(files) ? files : Object.keys(files).map(name => ({
+          name,
+          type: 'file',
+          content: files[name],
+          updatedAt: null
+        }));
+        setFiles(fileArr.map(file => ({
+          name: file.fileName || file.name,
           type: 'file',
           content: file.content,
           updatedAt: file.updatedAt
@@ -75,7 +82,7 @@ const FileExplorer = ({ fileTree, onFileClick, onAdd, onDelete, currentFile, soc
 
   // Update local files when fileTree prop changes
   useEffect(() => {
-    if (fileTree.length > 0) {
+    if (Array.isArray(fileTree) && fileTree.length > 0) {
       setFiles(fileTree);
     }
   }, [fileTree]);
