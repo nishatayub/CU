@@ -204,6 +204,32 @@ io.on('connection', (socket) => {
     }
   });
 
+  // --- CHAT SOCKET EVENTS ---
+  socket.on('send-message', (message) => {
+    const { roomId } = message;
+    if (!roomId) return;
+    // Save message to room history (per room)
+    if (!rooms.has(roomId)) {
+      rooms.set(roomId, []);
+    }
+    rooms.get(roomId).push(message);
+    // Broadcast to all users in the room (including sender)
+    io.to(roomId).emit('receive-message', message);
+    // Send notification to all users in the room except sender
+    socket.to(roomId).emit('chat-notification', {
+      roomId,
+      username: message.username,
+      text: message.text,
+      timestamp: message.timestamp
+    });
+  });
+
+  socket.on('get-chat-history', ({ roomId }) => {
+    if (!roomId) return;
+    const history = rooms.get(roomId) || [];
+    socket.emit('chat-history', history);
+  });
+
   socket.on('disconnect', () => {
     const roomId = socket.roomId;
     if (roomId && usersInRoom[roomId]) {

@@ -13,24 +13,41 @@ const ChatBox = ({ socket, roomId, username }) => {
     if (!socket) return;
 
     // Listen for chat history
-    socket.on('chat-history', (history) => {
-      console.log('Received chat history:', history);
+    const onChatHistory = (history) => {
       setMessages(history);
       scrollToBottom();
-    });
+    };
+    socket.on('chat-history', onChatHistory);
 
     // Listen for new messages
-    socket.on('receive-message', (message) => {
-      console.log('Received message:', message);
+    const onReceiveMessage = (message) => {
       setMessages(prev => [...prev, message]);
       scrollToBottom();
-    });
+    };
+    socket.on('receive-message', onReceiveMessage);
+
+    // Listen for chat notifications
+    const onChatNotification = (notif) => {
+      // You can show a toast, badge, or update unread count here
+      // Example: window.alert(`${notif.username} sent a new message: ${notif.text}`);
+      // Or increment unread count if not in chat tab
+      if (typeof window !== 'undefined' && document.hidden) {
+        // Optionally show browser notification
+      }
+    };
+    socket.on('chat-notification', onChatNotification);
+
+    // Always request chat history when ChatBox mounts
+    if (roomId) {
+      socket.emit('get-chat-history', { roomId });
+    }
 
     return () => {
-      socket.off('chat-history');
-      socket.off('receive-message');
+      socket.off('chat-history', onChatHistory);
+      socket.off('receive-message', onReceiveMessage);
+      socket.off('chat-notification', onChatNotification);
     };
-  }, [socket]);
+  }, [socket, roomId]);
 
   const sendMessage = (e) => {
     e.preventDefault();
@@ -43,7 +60,7 @@ const ChatBox = ({ socket, roomId, username }) => {
       timestamp: new Date().toISOString()
     };
 
-    // Only emit the message, don't update local state directly
+    // Do NOT optimistically add the message here; wait for receive-message event
     socket.emit('send-message', messageData);
     setNewMessage('');
   };

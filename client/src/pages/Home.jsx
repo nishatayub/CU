@@ -19,7 +19,7 @@ const Home = () => {
 
   return (
     <div className="flex flex-col items-center mt-20">
-      <h1 className="text-3xl font-bold mb-4">Join Code Sync</h1>
+      <h1 className="text-3xl font-bold mb-4">Join Code Unity</h1>
       <input
         className="border p-2 mb-2"
         placeholder="Room ID"
