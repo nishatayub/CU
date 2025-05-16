@@ -27,9 +27,13 @@ const getLanguageFromFileName = (fileName) => {
     'java': 'java',
     'cpp': 'cpp',
     'c': 'c',
-    'html': 'html',
-    'css': 'css',
-    'json': 'json',
+    'ts': 'typescript',
+    'go': 'go',
+    'rb': 'ruby',
+    'php': 'php',
+    'rs': 'rust',
+    'kt': 'kotlin',
+    'swift': 'swift',
     'md': 'markdown',
     'txt': 'plaintext'
   };
