@@ -5,9 +5,13 @@ import Home from './pages/Home';
 import Editor from './pages/Editor';
 import ChatBox from './components/ChatBox';
 
+const BACKEND_URL = import.meta.env.PROD 
+  ? 'https://cu-669q.onrender.com'
+  : 'http://localhost:8080';
+const socket = io(BACKEND_URL);
+
 function App() {
   useEffect(() => {
-    const socket = io('http://localhost:8080');
     socket.on('connect', () => {
       console.log('Connected to server:', socket.id);
     });
