@@ -24,7 +24,6 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/editor/:roomId" element={<Editor />} />
-        <Route path="/chats/:roomId" element={<ChatBox />} />
       </Routes>
     </BrowserRouter>
   );
