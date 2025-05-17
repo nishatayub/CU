@@ -17,7 +17,7 @@ const app = express();
 const server = http.createServer(app);
 
 app.use(cors({
-  origin: ['https://cu-sandy.vercel.app', 'http://localhost:5173'],
+  origin: ['https://cuni.vercel.app', 'http://localhost:5173'],
   methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'PATCH', 'DELETE'],
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization']
