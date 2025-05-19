@@ -4,16 +4,30 @@ import { FaPlay, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 const CodeRunner = ({ currentFile, code, children, onRunCode }) => {
   const [output, setOutput] = useState('');
   const [isOutputVisible, setIsOutputVisible] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleRun = async (e) => {
     e.preventDefault();
+    setIsOutputVisible(true);
+    if (!code || !currentFile) {
+      setOutput('Please open a file and write some code first.');
+      return;
+    }
+    setIsLoading(true);
     try {
       const response = await onRunCode();
-      setOutput(response.data.output || 'No output');
-      setIsOutputVisible(true); // Show output section when running code
+      console.log('Run response:', response);
+      if (response && response.data && typeof response.data.output !== 'undefined') {
+        setOutput(String(response.data.output));
+      } else if (response && response.data) {
+        setOutput('No output returned. Full response: ' + JSON.stringify(response.data));
+      } else {
+        setOutput('No output and no response from server.');
+      }
     } catch (error) {
-      setOutput(error.message);
-      setIsOutputVisible(true);
+      setOutput((error && error.message) ? error.message : 'An error occurred while running the code');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -23,36 +37,50 @@ const CodeRunner = ({ currentFile, code, children, onRunCode }) => {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between bg-gray-800 px-4 py-2">
-        <span className="text-white">{currentFile}</span>
+      <div className="flex items-center justify-between p-4 border-b border-white/5 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 backdrop-blur-xl">
+        <span className="text-white font-medium">{currentFile || 'No File Selected'}</span>
         <button 
           onClick={handleRun}
-          type="button"
-          className="bg-green-600 hover:bg-green-700 text-white px-4 py-1 rounded cursor-pointer z-10"
+          disabled={isLoading}
+          className={`px-4 py-1.5 rounded-xl bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-cyan-500/20 text-white font-medium transition-all duration-200 border border-white/10 hover:from-purple-500/30 hover:via-blue-500/30 hover:to-cyan-500/30 flex items-center gap-2
+            ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
-          <FaPlay className="inline mr-2" size={12} />
-          Run
+          <FaPlay className="text-sm" />
+          {isLoading ? 'Running...' : 'Run'}
         </button>
       </div>
-      <div className="flex-1" style={{ height: isOutputVisible ? 'calc(100vh - 400px)' : '100vh' }}>
-        {children}
-      </div>
-      {isOutputVisible && (
-        <div className="bg-gray-900 border-t border-gray-700">
-          <div className="flex justify-between items-center px-4 py-2 bg-gray-800">
-            <span className="text-white text-sm">Output</span>
+
+      {/* Editor and Output Panel stacked with flex, no overlap or wasted space */}
+      <div className="flex flex-col flex-1 min-h-0">
+        <div className="flex-1 min-h-0">
+          {children}
+        </div>
+        <div 
+          className={`bg-gradient-to-br from-gray-900 via-black to-black border-t border-white/5 transition-all duration-300 ease-in-out ${
+            isOutputVisible ? 'h-[300px]' : 'h-0'
+          } overflow-hidden`}
+        >
+          <div className="flex justify-between items-center px-4 py-2 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 backdrop-blur-xl">
+            <span className="text-white font-medium flex items-center gap-2">
+              Output
+              {isLoading && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400">
+                  Running...
+                </span>
+              )}
+            </span>
             <button
               onClick={toggleOutput}
-              className="text-gray-400 hover:text-white"
+              className="text-white/80 hover:text-white p-1 hover:bg-white/5 rounded transition-colors"
             >
-              <FaChevronDown size={14} />
+              {isOutputVisible ? <FaChevronDown size={14} /> : <FaChevronUp size={14} />}
             </button>
           </div>
-          <div className="h-[300px] overflow-auto p-4 font-mono text-white">
-            <pre>{output}</pre>
+          <div className="h-[calc(100%-40px)] overflow-auto p-4 font-mono text-white/90">
+            <pre className="whitespace-pre-wrap break-words">{output}</pre>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };

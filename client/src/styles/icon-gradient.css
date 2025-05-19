@@ -1,0 +1,35 @@
+/* Custom gradient styling for sidebar icons */
+.icon-gradient {
+  color: #a78bfa; /* purple-400 equivalent as a fallback */
+}
+
+.icon-gradient svg {
+  fill: url(#purple-blue-cyan-gradient) !important;
+  stroke: url(#purple-blue-cyan-gradient) !important;
+  filter: drop-shadow(0 0 2px rgba(168, 139, 250, 0.5));
+}
+
+.icon-gradient svg path,
+.icon-gradient svg line,
+.icon-gradient svg circle,
+.icon-gradient svg rect {
+  fill: url(#purple-blue-cyan-gradient) !important;
+  stroke: url(#purple-blue-cyan-gradient) !important;
+}
+
+/* Additional fallback for browsers that don't support SVG gradients */
+@supports not (fill: url(#purple-blue-cyan-gradient)) {
+  .icon-gradient {
+    background: linear-gradient(to right, #a78bfa, #60a5fa, #22d3ee);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  
+  .icon-gradient svg,
+  .icon-gradient svg path,
+  .icon-gradient svg line,
+  .icon-gradient svg circle,
+  .icon-gradient svg rect {
+    fill: #a78bfa !important; /* purple-400 equivalent */
+  }
+}
