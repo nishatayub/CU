@@ -1,88 +1,112 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FiFile, FiTrash2 } from 'react-icons/fi';
 
-const FileExplorer = ({ fileTree, onFileClick, onAdd, onDelete, currentFile }) => {
-  const handleAddFile = async () => {
-    const fileName = prompt('Enter file name (with extension):', 'newfile.js');
-    if (!fileName) return; // User cancelled
+const FileExplorer = ({
+  fileTree,
+  onFileClick,
+  onAdd,
+  onDelete,
+  currentFile,
+  className = ''
+}) => {
+  const [newItemName, setNewItemName] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
 
-    if (!fileName.includes('.')) {
-      alert('Please include a file extension (e.g., .js, .py, .java)');
-      return;
-    }
-
-    try {
-      // Check if file already exists in fileTree
-      if (fileTree.some(file => file.name === fileName)) {
-        alert('A file with this name already exists');
-        return;
-      }
-      await onAdd(fileName);
-      console.log('File creation requested:', fileName);
-    } catch (error) {
-      console.error('Error creating file:', error);
-      alert('Failed to create file: ' + error.message);
-    }
+  const startCreating = () => {
+    setIsCreating(true);
+    setNewItemName('');
   };
 
-  const handleDelete = async (fileName) => {
-    if (window.confirm(`Are you sure you want to delete ${fileName}?`)) {
-      try {
-        await onDelete(fileName);
-        // No socket emit here, handled in parent
-        console.log('File deletion requested:', fileName);
-      } catch (error) {
-        console.error('Error deleting file:', error);
-        alert('Failed to delete file: ' + error.message);
-      }
+  const handleCreate = (e) => {
+    e.preventDefault();
+    if (newItemName) {
+      onAdd(newItemName, 'file');
+      setNewItemName('');
+      setIsCreating(false);
     }
-  };
-
-  const renderTree = (nodes) => {
-    if (!Array.isArray(nodes)) return null;
-    return nodes.map((node) => (
-      <div key={node.name} className="ml-4 mt-1">
-        <div className={`flex items-center justify-between text-sm p-1 rounded ${
-          currentFile === node.name ? 'bg-blue-600' : 'hover:bg-gray-800'
-        }`}>
-          <span
-            className="cursor-pointer flex-grow p-1"
-            onClick={() => node.type === 'file' && onFileClick(node.name)}
-          >
-            {node.type === 'file' ? '📄' : '📁'} {node.name}
-          </span>
-          <div className="flex space-x-2">
-            <button 
-              className="px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-xs"
-              onClick={() => handleDelete(node.name)}
-              title="Delete"
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-        {node.type === 'folder' && renderTree(node.children)}
-      </div>
-    ));
   };
 
   return (
-    <div className="bg-gray-900 text-white p-4 h-full overflow-y-auto">
-      <div className="mb-4 flex justify-between items-center">
-        <h2 className="text-lg font-bold flex items-center gap-2">
-          <span>📁</span> Files
-        </h2>
-        <button
-          onClick={handleAddFile}
-          className="bg-green-600 hover:bg-green-700 px-3 py-1 rounded-lg text-sm flex items-center gap-1"
+    <div className={`text-white ${className}`}>
+      {/* Action Buttons */}
+      <div className="flex gap-2 mb-4">
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={startCreating}
+          className="flex-1 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-cyan-500/20 border border-white/10 backdrop-blur-xl hover:from-purple-500/30 hover:via-blue-500/30 hover:to-cyan-500/30 transition-all duration-200"
         >
-          <span>+</span> New File
-        </button>
+          <div className="flex items-center gap-2 justify-center">
+            <FiFile className="text-purple-400" />
+            <span>New File</span>
+          </div>
+        </motion.button>
       </div>
+
+      {/* Creation Form */}
+      <AnimatePresence>
+        {isCreating && (
+          <motion.form
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            onSubmit={handleCreate}
+            className="mb-4"
+          >
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newItemName}
+                onChange={(e) => setNewItemName(e.target.value)}
+                placeholder={'filename.js'}
+                className="flex-1 bg-gradient-to-r from-purple-500/5 via-blue-500/5 to-cyan-500/5 backdrop-blur-xl border border-white/10 rounded-xl px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+                autoFocus
+              />
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                type="submit"
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-cyan-500/20 text-white font-medium hover:opacity-90 transition-all duration-200 border border-white/10"
+              >
+                Create
+              </motion.button>
+            </div>
+          </motion.form>
+        )}
+      </AnimatePresence>
+
+      {/* Flat File List */}
       <div className="space-y-1">
-        {renderTree(fileTree)}
+        {fileTree.filter(item => item.type !== 'folder').map((item) => (
+          <motion.div
+            key={item.name}
+            className={`flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors duration-200 group ${currentFile === item.name ? 'bg-white/10' : ''}`}
+          >
+            <button
+              onClick={() => onFileClick(item.name)}
+              className="flex items-center gap-2 flex-1"
+            >
+              <FiFile className="text-purple-400" />
+              <span>{item.name}</span>
+            </button>
+            <div className="opacity-0 group-hover:opacity-100 flex items-center gap-2">
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => onDelete(item.name)}
+                className="p-1 hover:bg-white/10 rounded"
+              >
+                <FiTrash2 className="text-red-400" size={14} />
+              </motion.button>
+            </div>
+          </motion.div>
+        ))}
       </div>
     </div>
   );
 };
+
+// Folder logic removed; only flat file list is supported
 
 export default FileExplorer;

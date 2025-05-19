@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+// For tldraw socket sync
+import { serializeTldraw, deserializeTldraw } from '../utils/tldraw';
 import { useLocation, useParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import MonacoEditor from '@monaco-editor/react';
@@ -13,6 +15,8 @@ import UserList from '../components/UserList';
 import CodeRunner from '../components/CodeExecution/CodeRunner';
 import { getTemplateForFile } from '../utils/codeTemplates';
 import CopilotPanel from '../components/Copilot/CopilotPanel';
+import MobileError from '../components/MobileError.jsx';
+import { motion } from 'framer-motion';
 
 const BACKEND_URL = import.meta.env.PROD 
   ? 'https://cu-669q.onrender.com'
@@ -43,6 +47,35 @@ const getLanguageFromFileName = (fileName) => {
 const Editor = () => {
   const { roomId } = useParams();
   const { state } = useLocation();
+  // --- Tldraw state for real-time sync ---
+  const [tldrawDoc, setTldrawDoc] = useState(null); // Store tldraw document
+  const tldrawRef = useRef();
+  // Handle tldraw changes and emit to socket
+  const handleTldrawChange = useCallback((doc) => {
+    setTldrawDoc(doc);
+    if (socketRef.current && roomId) {
+      // You may want to throttle this in production
+      socketRef.current.emit('tldraw-update', {
+        roomId,
+        doc: serializeTldraw ? serializeTldraw(doc) : doc // fallback if no util
+      });
+    }
+  }, [roomId]);
+  // Listen for tldraw updates from socket
+  useEffect(() => {
+    if (!socketRef.current) return;
+    const socket = socketRef.current;
+    const onTldrawUpdate = (payload) => {
+      if (payload.roomId === roomId && payload.doc) {
+        setTldrawDoc(deserializeTldraw ? deserializeTldraw(payload.doc) : payload.doc);
+        // Optionally, update the tldrawRef directly if needed
+      }
+    };
+    socket.on('tldraw-update', onTldrawUpdate);
+    return () => {
+      socket.off('tldraw-update', onTldrawUpdate);
+    };
+  }, [roomId]);
   const socketRef = useRef(null);
   const [code, setCode] = useState('// Start typing...');
   const [users, setUsers] = useState([]);
@@ -50,6 +83,7 @@ const Editor = () => {
   const [files, setFiles] = useState({});
   const [currentFile, setCurrentFile] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Create persistent debounced save function
   const debouncedSaveRef = useRef();
@@ -126,8 +160,7 @@ const Editor = () => {
       setCode(fileContent);
       localStorage.setItem('lastOpenedFile', fileName);
       
-      // Emit event to notify other users
-      socketRef.current?.emit('file-opened', { roomId, fileName });
+      // No longer emit file-opened; navigation is local only
     } catch (error) {
       console.error('Error opening file:', error);
     }
@@ -400,95 +433,307 @@ const Editor = () => {
     switch (activeTab) {
       case 'users':
         return (
-          <UserList 
-            socket={socketRef.current}
-            currentUser={state?.username}
-            users={[state?.username, ...users].filter(Boolean)}
-          />
+          <div className="h-full bg-gradient-to-br from-gray-900 via-black to-black backdrop-blur-xl">
+            <motion.div 
+              className="p-4 border-b border-white/5 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              <h2 className="text-white font-medium flex items-center gap-2">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400">
+                  Active Users
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-xs bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-cyan-500/20 text-white/80 border border-white/10">
+                  Live
+                </span>
+              </h2>
+            </motion.div>
+            <UserList 
+              socket={socketRef.current}
+              currentUser={state?.username}
+              users={Array.from(new Set([state?.username, ...users].filter(Boolean)))}
+              className="p-4 space-y-2"
+            />
+          </div>
         );
       case 'files':
         return (
-          <FileExplorer
-            fileTree={Object.keys(files).map((name) => ({
-              name,
-              type: 'file',
-              content: files[name]
-            }))}
-            onFileClick={handleFileClick}
-            onAdd={handleAddNode}
-            onDelete={handleDeleteNode}
-            currentFile={currentFile}
-            socket={socketRef.current}
-            roomId={roomId}
-          />
+          <div className="h-full bg-gradient-to-br from-gray-900 via-black to-black backdrop-blur-xl">
+            <motion.div 
+              className="p-4 border-b border-white/5 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              <h2 className="text-white font-medium flex items-center gap-2">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400">
+                  Files
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-xs bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-cyan-500/20 text-white/80 border border-white/10">
+                  Live
+                </span>
+              </h2>
+            </motion.div>
+            <FileExplorer
+              fileTree={Object.keys(files).map((name) => ({
+                name,
+                type: 'file',
+                content: files[name]
+              }))}
+              onFileClick={handleFileClick}
+              onAdd={handleAddNode}
+              onDelete={handleDeleteNode}
+              currentFile={currentFile}
+              socket={socketRef.current}
+              roomId={roomId}
+              className="p-4"
+              hideFolderActions={true}
+            />
+          </div>
         );
       case 'draw':
         return (
-          <div className="w-full h-full bg-gray-800">
-            <Tldraw
-              persistenceKey={`drawing-${roomId}`}
-              className="h-full w-full"
-              autoFocus={false}
-            />
+          <div className="w-full h-full bg-gradient-to-br from-gray-900 via-black to-black">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-blue-500/5 to-cyan-500/5"></div>
+            <div className="relative h-full">
+              <Tldraw
+                persistenceKey={`drawing-${roomId}`}
+                className="h-full w-full"
+                autoFocus={false}
+              />
+            </div>
           </div>
         );
       case 'chat':
         return (
-          <ChatBox
-            socket={socketRef.current}
-            roomId={roomId}
-            username={state?.username}
-          />
+          <div className="h-full flex flex-col bg-gradient-to-br from-gray-900 via-black to-black">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-blue-500/5 to-cyan-500/5"></div>
+            <motion.div 
+              className="p-4 border-b border-white/5 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 relative"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              <h2 className="text-white font-medium flex items-center gap-2">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400">
+                  Code Chat
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-xs bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-cyan-500/20 text-white/80 border border-white/10">
+                  Live
+                </span>
+              </h2>
+            </motion.div>
+            <div className="relative flex-1 overflow-hidden">
+              <ChatBox
+                socket={socketRef.current}
+                roomId={roomId}
+                username={state?.username}
+              />
+            </div>
+          </div>
         );
       case 'copilot':
         return (
-          <CopilotPanel
-            currentFile={currentFile}
-            code={code}
-          />
+          <div className="h-full bg-gradient-to-br from-gray-900 via-black to-black backdrop-blur-xl">
+            <motion.div 
+              className="p-4 border-b border-white/5 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              <h2 className="text-white font-medium flex items-center gap-2">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400">
+                  AI Assistant
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-xs bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-cyan-500/20 text-white/80 border border-white/10">
+                  Live
+                </span>
+              </h2>
+            </motion.div>
+            <CopilotPanel
+              currentFile={currentFile}
+              code={code}
+              className="p-4"
+            />
+          </div>
         );
       default:
         return null;
     }
   };
 
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  if (isMobile) {
+    return <MobileError />;
+  }
+
   return (
-    <div className="flex h-screen">
-      <Sidebar 
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        unreadCount={unreadCount}
-      />
-      <div className="flex-1 flex">
-        {activeTab === 'draw' ? (
-          renderActiveTab()
-        ) : (
-          <>
-            <div className="w-64 border-r border-gray-700">
-              {renderActiveTab()}
-            </div>
-            <div className="flex-1">
-              <CodeRunner 
-                currentFile={currentFile} 
-                code={code}
-                onRunCode={handleRunCode}
+    <div className="h-screen overflow-hidden">
+      {/* Background */}
+      <div className="fixed inset-0">
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-black to-black"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 via-blue-500/5 to-cyan-500/5 mix-blend-overlay"></div>
+      </div>
+
+      {/* Main Content */}
+      <div className="relative flex h-full">
+        {/* Sidebar */}
+        <motion.div 
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="w-20 border-r border-white/5 bg-gradient-to-b from-gray-900 via-black to-black backdrop-blur-xl z-20"
+        >
+          <Sidebar 
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            unreadCount={unreadCount}
+            className="h-full"
+          />
+        </motion.div>
+
+        {/* Main Editor Area */}
+        <div className="flex-1 flex">
+          {activeTab === 'draw' ? (
+            // Draw mode: Sidebar | Chat | Draw
+            <>
+              {/* Chat Panel */}
+              <div className="w-80 border-r border-white/5 bg-gradient-to-b from-gray-900 via-black to-black backdrop-blur-xl flex flex-col">
+                <motion.div 
+                  className="p-4 border-b border-white/5 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                >
+                  <h2 className="text-white font-medium flex items-center gap-2">
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400">
+                      Code Chat
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-xs bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-cyan-500/20 text-white/80 border border-white/10">
+                      Live
+                    </span>
+                  </h2>
+                </motion.div>
+                <div className="relative flex-1 overflow-hidden">
+                  <ChatBox
+                    socket={socketRef.current}
+                    roomId={roomId}
+                    username={state?.username}
+                  />
+                </div>
+              </div>
+              {/* Draw Canvas with socket logic */}
+              <div className="flex-1 relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-blue-500/5 to-cyan-500/5"></div>
+                <div className="relative h-full">
+                  <Tldraw
+                    ref={tldrawRef}
+                    persistenceKey={`drawing-${roomId}`}
+                    className="h-full w-full"
+                    autoFocus={false}
+                    document={tldrawDoc}
+                    onChange={handleTldrawChange}
+                  />
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Left Panel */}
+              <motion.div 
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="w-64 border-r border-white/5 bg-black/50 backdrop-blur-xl overflow-y-auto"
               >
-                <MonacoEditor
-                  height="100%"
-                  language={currentFile ? getLanguageFromFileName(currentFile) : 'javascript'}
-                  theme="vs-dark"
-                  value={code}
-                  onChange={handleCodeChanges}
-                  options={{
-                    minimap: { enabled: false },
-                    fontSize: 14,
-                    automaticLayout: true
-                  }}
-                />
-              </CodeRunner>
-            </div>
-          </>
-        )}
+                {renderActiveTab()}
+              </motion.div>
+
+              {/* Main Content Area */}
+              <div className="flex-1 flex flex-col min-h-0 relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-blue-500/5 to-cyan-500/5"></div>
+                <div className="relative flex flex-col h-full min-h-0">
+                  {/* Editor Header */}
+                  <motion.div 
+                    className="p-4 border-b border-white/5 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 backdrop-blur-xl"
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-white font-medium">
+                        {currentFile || 'No File Selected'}
+                      </h2>
+                      {currentFile && (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="flex items-center gap-2"
+                        >
+                          <span className="px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 text-sm border border-white/10 backdrop-blur-xl text-gray-300">
+                            {getLanguageFromFileName(currentFile)}
+                          </span>
+                        </motion.div>
+                      )}
+                    </div>
+                  </motion.div>
+
+                  {/* Code Editor and Output Panel */}
+                  <div className="flex-1 min-h-0 flex flex-col">
+                    <CodeRunner 
+                      currentFile={currentFile} 
+                      code={code}
+                      onRunCode={handleRunCode}
+                    >
+                      <MonacoEditor
+                        height="100%"
+                        language={currentFile ? getLanguageFromFileName(currentFile) : 'javascript'}
+                        theme="vs-dark"
+                        defaultValue={code}
+                        onChange={(value) => {
+                          if (value !== code) handleCodeChanges(value);
+                        }}
+                        options={{
+                          minimap: { enabled: false },
+                          fontSize: 14,
+                          automaticLayout: true,
+                          background: '#0A0A0A',
+                          padding: { top: 16, bottom: 16 },
+                          scrollbar: {
+                            vertical: 'visible',
+                            horizontal: 'visible',
+                            useShadows: false,
+                            verticalScrollbarSize: 8,
+                            horizontalScrollbarSize: 8
+                          },
+                          lineHeight: 1.6,
+                          letterSpacing: 0.5,
+                          fontFamily: "'JetBrains Mono', monospace",
+                          smoothScrolling: true,
+                          cursorBlinking: "smooth",
+                          cursorSmoothCaretAnimation: true,
+                          renderWhitespace: "none",
+                          glyphMargin: false,
+                          renderLineHighlight: "all",
+                          contextmenu: true,
+                          mouseWheelZoom: true,
+                          quickSuggestions: true,
+                          roundedSelection: true,
+                          wordWrap: "on"
+                        }}
+                        className="border-l border-white/5"
+                        key={currentFile}
+                      />
+                    </CodeRunner>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

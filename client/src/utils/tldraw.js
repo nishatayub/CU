@@ -1,10 +1,17 @@
-import { Tldraw } from 'tldraw'
-import 'tldraw/tldraw.css'
+// Utility functions for tldraw document socket sync
+// You can enhance these if you use a more complex tldraw document structure
+export function serializeTldraw(doc) {
+  try {
+	return JSON.stringify(doc);
+  } catch (e) {
+	return null;
+  }
+}
 
-export default function App() {
-	return (
-		<div style={{ position: 'fixed', inset: 0 }}>
-			<Tldraw />
-		</div>
-	)
+export function deserializeTldraw(str) {
+  try {
+	return JSON.parse(str);
+  } catch (e) {
+	return null;
+  }
 }
