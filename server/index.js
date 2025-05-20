@@ -17,7 +17,7 @@ const app = express();
 const server = http.createServer(app);
 
 app.use(cors({
-  origin: ['https://cu-sandy.vercel.app', 'http://localhost:5173'],
+  origin: ['https://cu-sandy.vercel.app', 'https://cuni.vercel.app', 'http://localhost:5173'],
   methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'PATCH', 'DELETE'],
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -27,7 +27,7 @@ app.use('/api/files', fileRoutes);
 
 const io = new Server(server, {
   cors: {
-    origin: ['https://cu-sandy.vercel.app', 'http://localhost:5173'],
+    origin: ['https://cu-sandy.vercel.app', 'https://cuni.vercel.app', 'http://localhost:5173'],
     methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'PATCH', 'DELETE'],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization']
