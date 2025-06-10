@@ -13,6 +13,7 @@ import { getTemplateForFile } from '../utils/codeTemplates';
 import CopilotPanel from '../components/Copilot/CopilotPanel';
 import MobileError from '../components/MobileError.jsx';
 import { motion } from 'framer-motion';
+import { useNotifications } from '../components/NotificationToast';
 
 const BACKEND_URL = import.meta.env.PROD 
   ? 'https://cu-669q.onrender.com'
@@ -52,6 +53,12 @@ const Editor = () => {
   const [currentFile, setCurrentFile] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
+  
+  // Initialize ref after state declaration
+  const activeTabRef = useRef(activeTab);
+
+  // Notification system
+  const { showUserJoined, showUserLeft, NotificationContainer } = useNotifications();
 
   // Create persistent debounced save function
   const debouncedSaveRef = useRef();
@@ -143,6 +150,8 @@ const Editor = () => {
 
   // Socket initialization and event handling
   useEffect(() => {
+    if (!roomId || !state?.username) return;
+
     // Initialize socket connection
     socketRef.current = io(BACKEND_URL, {
       withCredentials: true,
@@ -160,9 +169,7 @@ const Editor = () => {
     socket.removeAllListeners();
 
     socket.on('connect', () => {
-      if (roomId && state?.username) {
-        socket.emit('join-room', { roomId, username: state.username });
-      }
+      socket.emit('join-room', { roomId, username: state.username });
     });
 
     socket.on('connect_error', (error) => {
@@ -171,6 +178,15 @@ const Editor = () => {
 
     socket.on('update-user-list', (userList) => {
       setUsers(userList.map(u => u.username));
+    });
+
+    // User join/leave notification events
+    socket.on('user-joined', ({ username }) => {
+      showUserJoined(username);
+    });
+
+    socket.on('user-left', ({ username }) => {
+      showUserLeft(username);
     });
 
     // File-related socket events
@@ -196,9 +212,8 @@ const Editor = () => {
         return newFiles;
       });
 
-      if (currentFile === fileName) {
-        setCurrentFile(null);
-        setCode('');
+      setCurrentFile(prev => prev === fileName ? null : prev);
+      if (localStorage.getItem('lastOpenedFile') === fileName) {
         localStorage.removeItem('lastOpenedFile');
       }
     });
@@ -209,9 +224,12 @@ const Editor = () => {
         ...prev,
         [fileName]: content
       }));
-      if (currentFile === fileName && content !== code) {
-        setCode(content);
-      }
+      setCurrentFile(prev => {
+        if (prev === fileName) {
+          setCode(content);
+        }
+        return prev;
+      });
     });
 
     socket.on('file-updated', ({ fileName, content }) => {
@@ -219,33 +237,34 @@ const Editor = () => {
         ...prev,
         [fileName]: content
       }));
-      if (currentFile === fileName && content !== code) {
-        setCode(content);
-      }
+      setCurrentFile(prev => {
+        if (prev === fileName) {
+          setCode(content);
+        }
+        return prev;
+      });
     });
 
     // --- CHAT NOTIFICATION HANDLER ---
     socket.on('chat-notification', () => {
-      // Only increment unread if not in chat tab
-      setUnreadCount(prev => (activeTab !== 'chat' ? prev + 1 : prev));
-      // Optionally, show a toast or browser notification here
+      setUnreadCount(prev => activeTabRef.current !== 'chat' ? prev + 1 : prev);
     });
 
     return () => {
-      socket.off('files-list-updated');
-      socket.off('file-created');
-      socket.off('file-deleted');
-      socket.off('file-content-change');
-      socket.off('file-updated');
-      socket.off('chat-notification');
+      socket.removeAllListeners();
       socket.disconnect();
     };
-  }, [roomId, state?.username, currentFile, code, activeTab]);
+  }, [roomId, state?.username, showUserJoined, showUserLeft]);
 
   useEffect(() => {
     if (activeTab === 'chat') {
       setUnreadCount(0);
     }
+  }, [activeTab]);
+
+  // Update activeTabRef when activeTab changes
+  useEffect(() => {
+    activeTabRef.current = activeTab;
   }, [activeTab]);
 
   // Add this useEffect to load the last opened file
@@ -695,6 +714,9 @@ const Editor = () => {
 }
         </div>
       </div>
+      
+      {/* Notification Container */}
+      <NotificationContainer />
     </div>
   );
 };

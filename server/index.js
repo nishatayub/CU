@@ -99,7 +99,28 @@ io.on('connection', (socket) => {
       console.error('Error getting files for room:', error);
     }
 
+    // Notify other users that someone joined (not the user who joined)
     socket.to(roomId).emit('user-joined', { username });
+    
+    // Add system message to chat about user joining
+    const joinMessage = {
+      type: 'system',
+      username: 'System',
+      text: `${username} joined the room`,
+      timestamp: new Date().toISOString(),
+      roomId
+    };
+    
+    // Save system message to room history
+    if (!rooms.has(roomId)) {
+      rooms.set(roomId, []);
+    }
+    rooms.get(roomId).push(joinMessage);
+    
+    // Broadcast join message to all users in room (including the one who joined)
+    io.to(roomId).emit('receive-message', joinMessage);
+    
+    // Update user list for all users in room
     io.to(roomId).emit('update-user-list', usersInRoom[roomId]);
   });
 
@@ -215,13 +236,18 @@ io.on('connection', (socket) => {
 
   // --- CHAT SOCKET EVENTS ---
   socket.on('send-message', (message) => {
+    console.log('Received message from client:', message);
     const { roomId } = message;
-    if (!roomId) return;
+    if (!roomId) {
+      console.log('No roomId provided in message');
+      return;
+    }
     // Save message to room history (per room)
     if (!rooms.has(roomId)) {
       rooms.set(roomId, []);
     }
     rooms.get(roomId).push(message);
+    console.log('Broadcasting message to room:', roomId);
     // Broadcast to all users in the room (including sender)
     io.to(roomId).emit('receive-message', message);
     // Send notification to all users in the room except sender
@@ -234,20 +260,49 @@ io.on('connection', (socket) => {
   });
 
   socket.on('get-chat-history', ({ roomId }) => {
+    console.log('Client requesting chat history for room:', roomId);
     if (!roomId) return;
     const history = rooms.get(roomId) || [];
+    console.log('Sending chat history:', history.length, 'messages');
     socket.emit('chat-history', history);
   });
 
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
     if (socket.roomId && usersInRoom[socket.roomId]) {
+      const leavingUser = usersInRoom[socket.roomId].find(user => user.socketId === socket.id);
+      
       usersInRoom[socket.roomId] = usersInRoom[socket.roomId].filter(
         (user) => user.socketId !== socket.id
       );
+      
       if (usersInRoom[socket.roomId].length === 0) {
         delete usersInRoom[socket.roomId];
       } else {
+        // Notify remaining users that someone left
+        if (leavingUser) {
+          socket.to(socket.roomId).emit('user-left', { username: leavingUser.username });
+          
+          // Add system message to chat about user leaving
+          const leaveMessage = {
+            type: 'system',
+            username: 'System',
+            text: `${leavingUser.username} left the room`,
+            timestamp: new Date().toISOString(),
+            roomId: socket.roomId
+          };
+          
+          // Save system message to room history
+          if (!rooms.has(socket.roomId)) {
+            rooms.set(socket.roomId, []);
+          }
+          rooms.get(socket.roomId).push(leaveMessage);
+          
+          // Broadcast leave message to remaining users
+          socket.to(socket.roomId).emit('receive-message', leaveMessage);
+        }
+        
+        // Update user list for remaining users
         io.to(socket.roomId).emit('update-user-list', usersInRoom[socket.roomId]);
       }
     }
