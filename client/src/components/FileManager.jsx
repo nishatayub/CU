@@ -20,10 +20,14 @@ const FileExplorer = ({
 
   const handleCreate = (e) => {
     e.preventDefault();
+    console.log('FileManager handleCreate called with newItemName:', newItemName);
     if (newItemName) {
+      console.log('Calling onAdd with:', newItemName, 'file');
       onAdd(newItemName, 'file');
       setNewItemName('');
       setIsCreating(false);
+    } else {
+      console.log('newItemName is empty, not creating file');
     }
   };
 

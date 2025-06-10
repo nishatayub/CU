@@ -6,6 +6,7 @@ const { Server } = require('socket.io');
 const File = require('./models/file');
 require('dotenv').config();
 const fileRoutes = require('./routes/files.js');
+const aiRoutes = require('./routes/ai-simple.js'); // Simple AI router that works
 
 // Connect to MongoDB
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -31,6 +32,7 @@ app.use(
 );
 app.use(express.json());
 app.use('/api/files', fileRoutes);
+app.use('/api/ai', aiRoutes);
 
 const io = new Server(server, {
   cors: {

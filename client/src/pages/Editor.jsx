@@ -257,8 +257,23 @@ const Editor = () => {
   }, [files, handleFileClick]); // Include handleFileClick in dependencies
 
   const handleAddNode = async (fileName) => {
+    console.log('handleAddNode called with fileName:', fileName);
+    console.log('roomId:', roomId);
+    console.log('BACKEND_URL:', BACKEND_URL);
+    
+    if (!roomId) {
+      alert('Error: No room ID found. Please refresh the page and try again.');
+      return;
+    }
+    
+    if (!fileName || fileName.trim() === '') {
+      alert('Error: Please enter a valid filename.');
+      return;
+    }
+    
     try {
       const template = getTemplateForFile(fileName);
+      console.log('Generated template for', fileName, ':', template);
       
       // First update MongoDB through the API
       const response = await axios.post(`${BACKEND_URL}/api/files/${roomId}`, {
@@ -266,6 +281,8 @@ const Editor = () => {
         content: template,
         roomId
       });
+
+      console.log('API response:', response.data);
 
       if (response.data.success) {
         // Update local state immediately
@@ -285,9 +302,28 @@ const Editor = () => {
         // Set as current file and update editor
         setCurrentFile(fileName);
         setCode(fileContent);
+        console.log('File created successfully:', fileName);
+        
+        // Show success message
+        alert(`File "${fileName}" created successfully!`);
+      } else {
+        console.error('API returned success: false', response.data);
+        alert(`Failed to create file: ${response.data.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error creating file:', error);
+      console.error('Error details:', error.response?.data);
+      
+      if (error.response) {
+        // Server responded with error status
+        alert(`Server error: ${error.response.data?.message || error.message}`);
+      } else if (error.request) {
+        // Request was made but no response received
+        alert('Network error: Unable to reach the server. Please check if the backend is running.');
+      } else {
+        // Something else happened
+        alert(`Error: ${error.message}`);
+      }
     }
   };
 
@@ -358,6 +394,22 @@ const Editor = () => {
     // Save to server with debounce (this will emit file-updated event)
     saveToServer(currentFile, value);
   }, [currentFile, roomId, saveToServer]);
+
+  // Handle code insertion from AI
+  const handleCodeInsert = useCallback((codeToInsert) => {
+    if (!currentFile) {
+      alert('Please select a file first before inserting code.');
+      return;
+    }
+
+    // Insert code at the end of current content (with proper spacing)
+    const currentContent = code || '';
+    const separator = currentContent.trim() ? '\n\n' : '';
+    const newContent = currentContent + separator + codeToInsert;
+    
+    // Update the editor
+    handleCodeChanges(newContent);
+  }, [currentFile, code, handleCodeChanges]);
 
   const handleRunCode = async () => {
     if (!currentFile || !code) return null;
@@ -495,6 +547,7 @@ const Editor = () => {
             <CopilotPanel
               currentFile={currentFile}
               code={code}
+              onCodeInsert={handleCodeInsert}
               className="p-4"
             />
           </div>
