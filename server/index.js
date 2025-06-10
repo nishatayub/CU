@@ -8,37 +8,52 @@ require('dotenv').config();
 const fileRoutes = require('./routes/files.js');
 
 // Connect to MongoDB
-const MONGODB_URI = process.env.MONGODB_URI ;
-mongoose.connect(MONGODB_URI)
+const MONGODB_URI = process.env.MONGODB_URI;
+mongoose
+  .connect(MONGODB_URI)
   .then(() => console.log('Connected to MongoDB'))
-  .catch(err => console.error('MongoDB connection error:', err));
+  .catch((err) => console.error('MongoDB connection error:', err));
 
 const app = express();
 const server = http.createServer(app);
 
-app.use(cors({
-  origin: ['https://cu-sandy.vercel.app', 'https://cuni.vercel.app', 'http://localhost:5173'],
-  methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'PATCH', 'DELETE'],
-  credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+app.use(
+  cors({
+    origin: [
+      'https://cu-sandy.vercel.app',
+      'https://cuni.vercel.app',
+      'http://localhost:5173',
+    ],
+    methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'PATCH', 'DELETE'],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
 app.use(express.json());
 app.use('/api/files', fileRoutes);
 
 const io = new Server(server, {
   cors: {
-    origin: ['https://cu-sandy.vercel.app', 'https://cuni.vercel.app', 'http://localhost:5173'],
+    origin: [
+      'https://cu-sandy.vercel.app',
+      'https://cuni.vercel.app',
+      'http://localhost:5173',
+    ],
     methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'PATCH', 'DELETE'],
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization'],
   },
   path: '/socket.io/',
-  transports: ['websocket', 'polling'],
-  pingTimeout: 60000,
-  pingInterval: 25000,
-  upgradeTimeout: 30000,
+  transports: ['polling', 'websocket'],
+  pingTimeout: 30000,
+  pingInterval: 10000,
+  upgradeTimeout: 15000,
   allowUpgrades: true,
-  cookie: false
+  cookie: false,
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
 });
 
 // Track active rooms and their file lists
@@ -67,15 +82,15 @@ io.on('connection', (socket) => {
     // Get latest file list from database and broadcast
     try {
       const files = await File.find({ roomId });
-      const fileList = files.map(f => ({
+      const fileList = files.map((f) => ({
         fileName: f.fileName,
         content: f.content,
-        updatedAt: f.updatedAt
+        updatedAt: f.updatedAt,
       }));
-      
+
       // Store current file list in memory
       roomFiles.set(roomId, fileList);
-      
+
       // Send to all clients in room
       io.to(roomId).emit('files-list-updated', { files: fileList });
     } catch (error) {
@@ -100,7 +115,7 @@ io.on('connection', (socket) => {
       roomFileList.push({
         fileName: file.fileName,
         content: file.content,
-        updatedAt: file.createdAt
+        updatedAt: file.createdAt,
       });
       roomFiles.set(roomId, roomFileList);
 
@@ -108,20 +123,18 @@ io.on('connection', (socket) => {
       io.to(roomId).emit('file-created', {
         fileName: file.fileName,
         content: file.content,
-        updatedAt: file.createdAt
+        updatedAt: file.createdAt,
       });
 
       // Also send updated file list
       io.to(roomId).emit('files-list-updated', {
-        files: roomFileList
+        files: roomFileList,
       });
-
-      console.log('File created and broadcasted:', { roomId, fileName });
     } catch (error) {
       console.error('Error creating file:', error);
       socket.emit('file-error', {
         error: 'Failed to create file',
-        details: error.message
+        details: error.message,
       });
     }
   });
@@ -133,34 +146,30 @@ io.on('connection', (socket) => {
 
       // Update room's file list in memory
       const roomFileList = roomFiles.get(roomId) || [];
-      const updatedFileList = roomFileList.filter(f => f.fileName !== fileName);
+      const updatedFileList = roomFileList.filter((f) => f.fileName !== fileName);
       roomFiles.set(roomId, updatedFileList);
 
       // Broadcast deletion to all clients
       io.to(roomId).emit('file-deleted', { fileName });
-      
+
       // Send updated file list
       io.to(roomId).emit('files-list-updated', {
-        files: updatedFileList
+        files: updatedFileList,
       });
-
-      console.log('File deleted and broadcasted:', { roomId, fileName });
     } catch (error) {
       console.error('Error deleting file:', error);
       socket.emit('file-error', {
         error: 'Failed to delete file',
-        details: error.message
+        details: error.message,
       });
     }
   });
 
   socket.on('file-content-change', ({ roomId, fileName, content }) => {
-    console.log('Received content change:', { roomId, fileName });
-    // Immediately broadcast to other clients for real-time sync
     socket.to(roomId).emit('file-content-change', {
       fileName,
       content,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
   });
 
@@ -169,21 +178,21 @@ io.on('connection', (socket) => {
       // Update file in MongoDB after debounce
       const file = await File.findOneAndUpdate(
         { roomId, fileName },
-        { 
+        {
           content,
-          updatedAt: new Date()
+          updatedAt: new Date(),
         },
         { upsert: true, new: true }
       );
 
       // Update room's file list in memory
       const roomFileList = roomFiles.get(roomId) || [];
-      const fileIndex = roomFileList.findIndex(f => f.fileName === fileName);
+      const fileIndex = roomFileList.findIndex((f) => f.fileName === fileName);
       if (fileIndex !== -1) {
         roomFileList[fileIndex] = {
           fileName: file.fileName,
           content: file.content,
-          updatedAt: file.updatedAt
+          updatedAt: file.updatedAt,
         };
       }
 
@@ -191,15 +200,13 @@ io.on('connection', (socket) => {
       socket.to(roomId).emit('file-updated', {
         fileName,
         content: file.content,
-        updatedAt: file.updatedAt
+        updatedAt: file.updatedAt,
       });
-
-      console.log('File saved to database:', { roomId, fileName });
     } catch (error) {
       console.error('Error saving file:', error);
       socket.emit('file-error', {
         error: 'Failed to save file',
-        details: error.message
+        details: error.message,
       });
     }
   });
@@ -220,7 +227,7 @@ io.on('connection', (socket) => {
       roomId,
       username: message.username,
       text: message.text,
-      timestamp: message.timestamp
+      timestamp: message.timestamp,
     });
   });
 
@@ -231,40 +238,37 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    const roomId = socket.roomId;
-    if (roomId && usersInRoom[roomId]) {
-      usersInRoom[roomId] = usersInRoom[roomId].filter(u => u.socketId !== socket.id);
-      io.to(roomId).emit('update-user-list', usersInRoom[roomId]);
-      io.to(roomId).emit('user-left', { username: socket.username });
-    }
     console.log('User disconnected:', socket.id);
+    if (socket.roomId && usersInRoom[socket.roomId]) {
+      usersInRoom[socket.roomId] = usersInRoom[socket.roomId].filter(
+        (user) => user.socketId !== socket.id
+      );
+      if (usersInRoom[socket.roomId].length === 0) {
+        delete usersInRoom[socket.roomId];
+      } else {
+        io.to(socket.roomId).emit('update-user-list', usersInRoom[socket.roomId]);
+      }
+    }
   });
 });
 
-// These routes are now handled by fileRoutes using MongoDB
-
-//Delete endpoint is now handled by fileRoutes
-
-// These routes are now handled by fileRoutes using MongoDB
-
-// Add this endpoint for code execution
 app.post('/api/execute', async (req, res) => {
   try {
     const { language, code } = req.body;
 
     const languageMap = {
-      'js': 'javascript',
-      'py': 'python3',
-      'java': 'java',
-      'cpp': 'cpp',
-      'c': 'c',
-      'ts': 'typescript',
-      'go': 'go',
-      'rb': 'ruby',
-      'php': 'php',
-      'rs': 'rust',
-      'kt': 'kotlin',
-      'swift': 'swift'
+      js: 'javascript',
+      py: 'python3',
+      java: 'java',
+      cpp: 'cpp',
+      c: 'c',
+      ts: 'typescript',
+      go: 'go',
+      rb: 'ruby',
+      php: 'php',
+      rs: 'rust',
+      kt: 'kotlin',
+      swift: 'swift',
     };
 
     const response = await fetch('https://emkc.org/api/v2/piston/execute', {
@@ -275,29 +279,30 @@ app.post('/api/execute', async (req, res) => {
       body: JSON.stringify({
         language: languageMap[language] || language,
         version: '*',
-        files: [{
-          content: code
-        }]
-      })
+        files: [
+          {
+            content: code,
+          },
+        ],
+      }),
     });
 
     const data = await response.json();
-    
+
     if (data.run) {
       res.json({
         success: true,
-        output: data.run.output || data.run.stderr
+        output: data.run.output || data.run.stderr,
       });
     } else {
       throw new Error('Execution failed');
     }
-
   } catch (error) {
     console.error('Code execution error:', error);
     res.status(500).json({
       success: false,
       error: error.message,
-      output: 'Error executing code'
+      output: 'Error executing code',
     });
   }
 });

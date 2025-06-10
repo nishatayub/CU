@@ -5,7 +5,6 @@ import { FaPaperPlane } from 'react-icons/fa';
 const ChatBox = ({ socket, roomId, username }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -68,10 +67,10 @@ const ChatBox = ({ socket, roomId, username }) => {
   };
 
   return (
-    <div className="relative flex flex-col h-full bg-gradient-to-br from-gray-900 via-gray-900 to-black max-w-full overflow-hidden">
+    <div className="relative flex flex-col h-full bg-gradient-to-br from-purple-900/40 via-blue-900/30 to-cyan-800/25 max-w-full overflow-hidden">
       <div 
         ref={chatContainerRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-purple-500/20 scrollbar-track-transparent"
+        className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-purple-500/30 scrollbar-track-transparent"
         style={{ height: 'calc(100% - 60px)' }} // Account for smaller input area
       >
         {messages.map((msg, index) => (
@@ -84,8 +83,8 @@ const ChatBox = ({ socket, roomId, username }) => {
             <div
               className={`max-w-[80%] p-3 rounded-2xl ${
                 msg.username === username
-                  ? 'bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-cyan-500/20 ml-auto backdrop-blur-xl border border-white/10'
-                  : 'bg-gradient-to-r from-pink-500/20 via-purple-500/20 to-blue-500/20 backdrop-blur-xl border border-white/10'
+                  ? 'bg-gradient-to-r from-purple-500/25 via-blue-500/25 to-cyan-500/25 ml-auto backdrop-blur-xl border border-white/15 shadow-lg shadow-purple-500/20'
+                  : 'bg-gradient-to-r from-pink-500/25 via-purple-500/25 to-blue-500/25 backdrop-blur-xl border border-white/15 shadow-lg shadow-pink-500/20'
               }`}
             >
               <div className="text-xs text-gray-400 mb-1">
@@ -95,25 +94,24 @@ const ChatBox = ({ socket, roomId, username }) => {
             </div>
           </motion.div>
         ))}
-        <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={sendMessage} className="flex-shrink-0 p-2 bg-black/40 border-t border-white/5">
+      <form onSubmit={sendMessage} className="flex-shrink-0 p-2 bg-gradient-to-r from-purple-900/20 via-blue-900/15 to-cyan-800/10 border-t border-white/10">
         <div className="flex items-center gap-1 w-full pr-1">
           <input
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type a message..."
-            className="flex-1 min-w-0 max-w-[calc(100%-44px)] bg-gradient-to-r from-purple-500/5 via-blue-500/5 to-cyan-500/5 backdrop-blur-xl border border-white/10 rounded-xl px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+            className="flex-1 min-w-0 max-w-[calc(100%-44px)] bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 backdrop-blur-xl border border-white/15 rounded-xl px-3 py-2 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
           />
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             type="submit"
             disabled={!newMessage.trim()}
-            className={`w-10 h-10 flex-shrink-0 rounded-xl bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 text-white flex items-center justify-center transition-all duration-200 shadow-lg shadow-purple-500/20 ${
-              !newMessage.trim() ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90'
+            className={`w-10 h-10 flex-shrink-0 rounded-xl bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 text-white flex items-center justify-center transition-all duration-200 shadow-lg shadow-purple-500/25 ${
+              !newMessage.trim() ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90 hover:shadow-xl hover:shadow-purple-500/30'
             }`}
             aria-label="Send message"
           >

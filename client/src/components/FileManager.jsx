@@ -28,18 +28,18 @@ const FileExplorer = ({
   };
 
   return (
-    <div className={`text-white ${className}`}>
+    <div className={`text-white overflow-hidden ${className}`}>
       {/* Action Buttons */}
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-2 mb-4 px-1">
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={startCreating}
-          className="flex-1 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-cyan-500/20 border border-white/10 backdrop-blur-xl hover:from-purple-500/30 hover:via-blue-500/30 hover:to-cyan-500/30 transition-all duration-200"
+          className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-gradient-to-r from-purple-500/25 via-blue-500/25 to-cyan-500/25 border border-white/15 backdrop-blur-xl hover:from-purple-500/35 hover:via-blue-500/35 hover:to-cyan-500/35 transition-all duration-200 shadow-lg shadow-purple-500/20"
         >
-          <div className="flex items-center gap-2 justify-center">
-            <FiFile className="text-purple-400" />
-            <span>New File</span>
+          <div className="flex items-center gap-2 justify-center min-w-0">
+            <FiFile className="text-purple-300 flex-shrink-0" />
+            <span className="truncate">New File</span>
           </div>
         </motion.button>
       </div>
@@ -54,20 +54,20 @@ const FileExplorer = ({
             onSubmit={handleCreate}
             className="mb-4"
           >
-            <div className="flex gap-2">
+            <div className="flex gap-2 min-w-0">
               <input
                 type="text"
                 value={newItemName}
                 onChange={(e) => setNewItemName(e.target.value)}
                 placeholder={'filename.js'}
-                className="flex-1 bg-gradient-to-r from-purple-500/5 via-blue-500/5 to-cyan-500/5 backdrop-blur-xl border border-white/10 rounded-xl px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+                className="flex-1 min-w-0 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 backdrop-blur-xl border border-white/15 rounded-xl px-4 py-2 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
                 autoFocus
               />
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 type="submit"
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-cyan-500/20 text-white font-medium hover:opacity-90 transition-all duration-200 border border-white/10"
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-500/25 via-blue-500/25 to-cyan-500/25 text-white font-medium hover:opacity-90 transition-all duration-200 border border-white/15 shadow-lg shadow-purple-500/20 flex-shrink-0"
               >
                 Create
               </motion.button>
@@ -81,23 +81,23 @@ const FileExplorer = ({
         {fileTree.filter(item => item.type !== 'folder').map((item) => (
           <motion.div
             key={item.name}
-            className={`flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors duration-200 group ${currentFile === item.name ? 'bg-white/10' : ''}`}
+            className={`flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gradient-to-r hover:from-purple-500/10 hover:via-blue-500/10 hover:to-cyan-500/10 transition-colors duration-200 group ${currentFile === item.name ? 'bg-gradient-to-r from-purple-500/15 via-blue-500/15 to-cyan-500/15 border border-white/10' : ''}`}
           >
             <button
               onClick={() => onFileClick(item.name)}
-              className="flex items-center gap-2 flex-1"
+              className="flex items-center gap-2 flex-1 min-w-0"
             >
-              <FiFile className="text-purple-400" />
-              <span>{item.name}</span>
+              <FiFile className="text-purple-300 flex-shrink-0" />
+              <span className="truncate">{item.name}</span>
             </button>
-            <div className="opacity-0 group-hover:opacity-100 flex items-center gap-2">
+            <div className="opacity-0 group-hover:opacity-100 flex items-center gap-2 flex-shrink-0">
               <motion.button
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={() => onDelete(item.name)}
-                className="p-1 hover:bg-white/10 rounded"
+                className="p-1 hover:bg-red-500/20 rounded transition-colors flex-shrink-0"
               >
-                <FiTrash2 className="text-red-400" size={14} />
+                <FiTrash2 className="text-red-300" size={14} />
               </motion.button>
             </div>
           </motion.div>

@@ -3,11 +3,11 @@ import { io } from 'socket.io-client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import Editor from './pages/Editor';
-import ChatBox from './components/ChatBox';
 
 const BACKEND_URL = import.meta.env.PROD 
   ? 'https://cu-669q.onrender.com'
   : 'http://localhost:8080';
+
 const socket = io(BACKEND_URL);
 
 function App() {
@@ -19,8 +19,7 @@ function App() {
   }, []);
 
   return (
-    
-      <BrowserRouter>
+    <BrowserRouter>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/editor/:roomId" element={<Editor />} />

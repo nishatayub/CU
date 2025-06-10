@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { motion } from 'framer-motion';
 import codeunityLogo from '../assets/CodeUnity.png';
-import heroImage from '../assets/pic.jpg';
-import Unknown from '../assets/Unknown.jpg';
+import bgImage from '../assets/bg.jpg';
 import { FaLinkedin, FaGithub, FaInstagram } from 'react-icons/fa';
 import { MdEmail } from 'react-icons/md';
 
@@ -18,9 +17,9 @@ const Home = () => {
   const joinRoomRef = useRef(null);
   const aboutRef = useRef(null);
   const featuresRef = useRef(null);
-  const useCodeUnityRef = useRef(null);
-  const reviewsRef = useRef(null);
-  const learnMoreRef = useRef(null);
+  const howToUseRef = useRef(null);
+  const testimonialsRef = useRef(null);
+  const faqRef = useRef(null);
   const connectRef = useRef(null);
 
   const scrollToSection = (ref) => {
@@ -31,7 +30,6 @@ const Home = () => {
   const createRoom = () => {
     const id = uuidv4();
     setRoomId(id);
-    // Smooth scroll to join room section
     joinRoomRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
@@ -40,609 +38,902 @@ const Home = () => {
     navigate(`/editor/${roomId}`, { state: { username } });
   };
 
-
-  const features = [
-    {
-      tag: "Real-time",
-      title: "Live Collaboration",
-      description: "Code together seamlessly with developers worldwide in real-time with perfect synchronization"
-    },
-    {
-      tag: "AI-Powered",
-      title: "Intelligent Assistant",
-      description: "Get smart code suggestions and real-time assistance from our advanced AI system"
-    },
-    {
-      tag: "Premium",
-      title: "Code Execution",
-      description: "Run and test your code directly in the browser with support for multiple languages"
-    },
-    {
-      tag: "New",
-      title: "Version Control",
-      description: "Built-in version control to track changes and manage code collaboratively"
-    },
-    {
-      tag: "Security",
-      title: "Secure Sharing",
-      description: "End-to-end encryption for secure code sharing and collaboration"
-    },
-    {
-      tag: "Integration",
-      title: "AI Integration",
-      description: "Seamless integration with popular AI models for enhanced development"
-    }
-  ];
-
-  const reviews = [
-    {
-      name: "Alex Chen",
-      role: "Senior Developer",
-      review: "CodeUnity has revolutionized how our team collaborates. The real-time features are incredible!"
-    },
-    {
-      name: "Sarah Johnson",
-      role: "Tech Lead",
-      review: "The AI assistance is like having an extra team member. It's increased our productivity significantly."
-    },
-    {
-      name: "Mike Brown",
-      role: "Full Stack Developer",
-      review: "Best collaborative coding platform I've used. The interface is intuitive and features are powerful."
-    }
-  ];
-
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white">
-      {/* Navigation Bar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-black/50 border-b border-white/5">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-8">
-              <motion.div 
-                className="h-8 cursor-pointer overflow-hidden rounded-xl"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <img src={codeunityLogo} alt="CodeUnity" className="h-full object-contain" />
-              </motion.div>
-              
-              {/* Desktop Menu */}
-              <div className="hidden md:flex items-center gap-6">
-                {[
-                  { name: 'About', ref: aboutRef },
-                  { name: 'Features', ref: featuresRef },
-                  { name: 'Use CodeUnity', ref: useCodeUnityRef },
-                  { name: 'Reviews', ref: reviewsRef },
-                  { name: 'Contact', ref: connectRef }
-                ].map((item) => (
-                  <motion.span
-                    key={item.name}
-                    className="relative cursor-pointer"
-                    whileHover={{ scale: 1.05 }}
-                    onClick={() => scrollToSection(item.ref)}
-                    initial={false}
-                  >
-                    <span className="relative z-10">{item.name}</span>
-                    <motion.div
-                      className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600"
-                      whileHover={{ width: '100%' }}
-                      transition={{ duration: 0.2 }}
-                    />
-                  </motion.span>
-                ))}
-              </div>
-            </div>
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Background */}
+      <div className="absolute inset-0">
+        <img 
+          src={bgImage} 
+          alt="Background" 
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/90 via-blue-900/80 to-cyan-800/70"></div>
+      </div>
 
-            {/* Mobile Menu Button */}
-            <div className="md:hidden">
+      {/* Floating Geometric Elements */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {/* Large Cyan Circle - Top Right */}
+        <motion.div
+          animate={{ 
+            rotate: [0, 360],
+            scale: [1, 1.1, 1]
+          }}
+          transition={{ 
+            duration: 20,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+          className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-gradient-to-br from-cyan-400/30 to-blue-500/20 blur-xl"
+        />
+        
+        {/* Medium Purple Ring - Bottom Right */}
+        <motion.div
+          animate={{ 
+            rotate: [360, 0],
+            y: [0, -20, 0]
+          }}
+          transition={{ 
+            duration: 15,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+          className="absolute bottom-20 right-20 w-64 h-64 rounded-full border-4 border-purple-400/30"
+          style={{
+            background: 'radial-gradient(circle, transparent 60%, rgba(168, 85, 247, 0.2) 70%)'
+          }}
+        />
+
+        {/* Small Yellow Dot - Top Left */}
+        <motion.div
+          animate={{ 
+            x: [0, 30, 0],
+            y: [0, -30, 0],
+            scale: [1, 1.5, 1]
+          }}
+          transition={{ 
+            duration: 8,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+          className="absolute top-40 left-20 w-8 h-8 rounded-full bg-gradient-to-r from-yellow-400 to-orange-500"
+        />
+
+        {/* Glass Sphere - Bottom Left */}
+        <motion.div
+          animate={{ 
+            y: [0, -15, 0],
+            scale: [1, 1.1, 1]
+          }}
+          transition={{ 
+            duration: 6,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+          className="absolute bottom-32 left-16 w-16 h-16 rounded-full bg-gradient-to-br from-white/20 to-cyan-400/30 backdrop-blur-sm border border-white/20"
+        />
+      </div>
+
+      {/* Navigation */}
+      <nav className="relative z-50 px-6 lg:px-12 py-6">
+        <div className="flex justify-between items-center">
+          {/* Logo */}
+          <motion.div 
+            className="flex items-center gap-3"
+            whileHover={{ scale: 1.05 }}
+          >
+            <img 
+              src={codeunityLogo} 
+              alt="CodeUnity" 
+              className="h-10 w-auto object-contain"
+            />
+            <span className="text-white font-bold text-xl">CODE UNITY</span>
+          </motion.div>
+
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center gap-8">
+            {[
+              { name: 'HOME', ref: null, active: true },
+              { name: 'FEATURES', ref: featuresRef },
+              { name: 'HOW TO USE', ref: howToUseRef },
+              { name: 'TESTIMONIALS', ref: testimonialsRef },
+              { name: 'FAQ', ref: faqRef },
+              { name: 'CONTACT', ref: connectRef }
+            ].map((item) => (
               <motion.button
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="p-2"
+                key={item.name}
+                className={`text-xs font-medium tracking-wider transition-colors ${
+                  item.active ? 'text-white' : 'text-white/70 hover:text-white'
+                }`}
+                whileHover={{ scale: 1.05 }}
+                onClick={() => item.ref && scrollToSection(item.ref)}
               >
-                <div className="w-6 h-5 flex flex-col justify-between">
-                  <motion.div
-                    animate={isMenuOpen ? { rotate: 45, y: 8 } : { rotate: 0, y: 0 }}
-                    className="h-0.5 w-full bg-white origin-left"
-                  />
-                  <motion.div
-                    animate={isMenuOpen ? { opacity: 0 } : { opacity: 1 }}
-                    className="h-0.5 w-full bg-white"
-                  />
-                  <motion.div
-                    animate={isMenuOpen ? { rotate: -45, y: -8 } : { rotate: 0, y: 0 }}
-                    className="h-0.5 w-full bg-white origin-left"
-                  />
-                </div>
+                {item.name}
               </motion.button>
-            </div>
-
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              className="hidden md:block px-6 py-2 rounded-full bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 text-white font-medium"
-              onClick={() => scrollToSection(joinRoomRef)}
-            >
-              Start Coding →
-            </motion.button>
+            ))}
           </div>
 
-          {/* Mobile Menu */}
-          <motion.div
-            initial={false}
-            animate={isMenuOpen ? { height: 'auto', opacity: 1 } : { height: 0, opacity: 0 }}
-            className="md:hidden overflow-hidden"
+          {/* Mobile Menu Button */}
+          <motion.button
+            className="md:hidden text-white"
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
           >
-            <div className="py-4 space-y-4">
-              {[
-                { name: 'About', ref: aboutRef },
-                { name: 'Features', ref: featuresRef },
-                { name: 'Use CodeUnity', ref: useCodeUnityRef },
-                { name: 'Reviews', ref: reviewsRef },
-                { name: 'Contact', ref: connectRef }
-              ].map((item) => (
-                <motion.div
-                  key={item.name}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => scrollToSection(item.ref)}
-                  className="px-4 py-2 hover:bg-white/5 rounded-lg cursor-pointer"
-                >
-                  {item.name}
-                </motion.div>
-              ))}
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                onClick={() => scrollToSection(joinRoomRef)}
-                className="w-full px-6 py-2 rounded-full bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 text-white font-medium"
-              >
-                Start Coding →
-              </motion.button>
+            <div className="w-6 h-5 flex flex-col justify-between">
+              <motion.div
+                animate={isMenuOpen ? { rotate: 45, y: 8 } : { rotate: 0, y: 0 }}
+                className="h-0.5 w-full bg-white origin-left"
+              />
+              <motion.div
+                animate={isMenuOpen ? { opacity: 0 } : { opacity: 1 }}
+                className="h-0.5 w-full bg-white"
+              />
+              <motion.div
+                animate={isMenuOpen ? { rotate: -45, y: -8 } : { rotate: 0, y: 0 }}
+                className="h-0.5 w-full bg-white origin-left"
+              />
             </div>
-          </motion.div>
+          </motion.button>
         </div>
+
+        {/* Mobile Menu */}
+        <motion.div
+          initial={false}
+          animate={isMenuOpen ? { height: 'auto', opacity: 1 } : { height: 0, opacity: 0 }}
+          className="md:hidden overflow-hidden"
+        >
+          <div className="pt-6 pb-4 space-y-4">
+            {[
+              { name: 'HOME', ref: null },
+              { name: 'FEATURES', ref: featuresRef },
+              { name: 'HOW TO USE', ref: howToUseRef },
+              { name: 'TESTIMONIALS', ref: testimonialsRef },
+              { name: 'FAQ', ref: faqRef },
+              { name: 'CONTACT', ref: connectRef }
+            ].map((item) => (
+              <motion.button
+                key={item.name}
+                className="block w-full text-left text-white/70 hover:text-white text-sm font-medium tracking-wider"
+                whileTap={{ scale: 0.95 }}
+                onClick={() => item.ref && scrollToSection(item.ref)}
+              >
+                {item.name}
+              </motion.button>
+            ))}
+          </div>
+        </motion.div>
       </nav>
 
-      {/* Main Content */}
-      <div className="pt-24 pb-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Hero Section */}
-          <div className="grid lg:grid-cols-2 gap-12 items-center mb-20">
-            <div className="space-y-8">
-              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold leading-tight">
-                AI-Powered<br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600">
-                  CODE UNITY
-                </span>
-              </h1>
-              <p className="text-lg text-gray-400 max-w-xl">
-                Experience the future of collaborative coding. Our AI-powered platform brings developers together, 
-                enhancing creativity and productivity through real-time collaboration.
-              </p>
-              <div className="flex flex-wrap gap-4">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  className="px-8 py-3 rounded-full bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 text-white font-medium"
-                  onClick={createRoom}
+      {/* Hero Section */}
+      <div className="relative z-10 px-6 lg:px-12 pt-16 pb-24">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Left Content */}
+            <motion.div
+              initial={{ opacity: 0, x: -50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8 }}
+              className="space-y-8"
+            >
+              {/* Main Heading */}
+              <div className="space-y-4">
+                <motion.h1
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 0.2 }}
+                  className="text-5xl lg:text-7xl font-bold leading-tight"
                 >
-                  Create Room →
-                </motion.button>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  className="px-8 py-3 rounded-full bg-white/10 hover:bg-white/20 text-white font-medium border border-white/10"
-                  onClick={() => scrollToSection(aboutRef)}
-                >
-                  Learn More
-                </motion.button>
+                  <span className="text-white">
+                    AI-Powered Code<br />
+                    Collaboration
+                  </span>
+                </motion.h1>
               </div>
-            </div>
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/30 via-blue-500/30 to-purple-600/30 blur-3xl"></div>
+
+              {/* Description */}
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.4 }}
+                className="text-white/80 text-lg leading-relaxed max-w-lg"
+              >
+                Experience the future of collaborative coding. Our AI-powered platform brings 
+                developers together, enhancing creativity and productivity through seamless 
+                real-time collaboration and intelligent code assistance.
+              </motion.p>
+
+              {/* CTA Button */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-black to-gray-900"
+                transition={{ duration: 0.8, delay: 0.6 }}
               >
-                <div className="aspect-square relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 via-blue-500/20 to-purple-600/20 mix-blend-overlay"></div>
-                  <img 
-                    src={heroImage} 
-                    alt="CodeUnity AI" 
-                    className="relative z-10 w-full h-full object-cover"
-                  />
-                </div>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="px-8 py-4 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 text-white font-medium text-lg shadow-lg hover:shadow-xl transition-shadow"
+                  onClick={createRoom}
+                >
+                  START CODING
+                </motion.button>
               </motion.div>
-            </div>
+            </motion.div>
+
+            {/* Right Side - Floating Elements Area */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 1, delay: 0.3 }}
+              className="relative h-96 lg:h-[500px]"
+            >
+              {/* This space showcases the floating geometric elements */}
+            </motion.div>
           </div>
+        </div>
+      </div>
 
-          {/* About Section */}
-          <div ref={aboutRef} className="mb-20 scroll-mt-20">
-            <div className="flex items-center gap-4 mb-8">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 p-0.5">
-                <div className="w-full h-full rounded-full bg-black flex items-center justify-center">
-                  <span className="text-2xl">👋</span>
-                </div>
-              </div>
-              <h2 className="text-2xl font-bold">About Us</h2>
-            </div>
-            <div className="grid md:grid-cols-2 gap-8 items-center">
-              <div className="space-y-6">
-                <h3 className="text-3xl font-bold">
-                  Empowering Developers with{" "}
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600">
-                    AI-Enhanced Collaboration
-                  </span>
-                </h3>
-                <p className="text-gray-400 leading-relaxed">
-                  CodeUnity is more than just a collaborative coding platform. We're building the future of software development 
-                  by combining real-time collaboration with advanced AI capabilities. Our mission is to make coding more 
-                  accessible, efficient, and enjoyable for developers worldwide.
-                </p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 rounded-2xl bg-gradient-to-br from-cyan-500/10 via-blue-500/10 to-purple-600/10 backdrop-blur-xl border border-white/10">
-                    <h4 className="font-semibold mb-1">1000+</h4>
-                    <p className="text-sm text-gray-400">Active Users</p>
-                  </div>
-                  <div className="p-4 rounded-2xl bg-gradient-to-br from-cyan-500/10 via-blue-500/10 to-purple-600/10 backdrop-blur-xl border border-white/10">
-                    <h4 className="font-semibold mb-1">50K+</h4>
-                    <p className="text-sm text-gray-400">Lines of Code</p>
-                  </div>
-                </div>
-              </div>
-              <div className="relative group">
-                <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/30 via-blue-500/30 to-purple-600/30 blur-3xl group-hover:blur-2xl transition-all duration-300"></div>
-                <div className="relative rounded-3xl overflow-hidden">
-                  <img src={Unknown} alt="About CodeUnity" className="w-full object-cover rounded-3xl" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Features Section */}
-          <div ref={featuresRef} className="mb-20 scroll-mt-20">
-            <div className="flex items-center gap-4 mb-8">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 p-0.5">
-                <div className="w-full h-full rounded-full bg-black flex items-center justify-center">
-                  <span className="text-2xl">⚡</span>
-                </div>
-              </div>
-              <h2 className="text-2xl font-bold">Features</h2>
-            </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {features.map((feature, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.1 }}
-                  className="relative group"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-600/10 rounded-3xl blur group-hover:blur-xl transition-all duration-300"></div>
-                  <div className="relative bg-black/50 backdrop-blur-xl rounded-3xl p-6 border border-white/10">
-                    <div className="inline-block px-3 py-1 rounded-full bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-600/10 border border-white/10 text-sm mb-4">
-                      {feature.tag}
-                    </div>
-                    <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-                    <p className="text-gray-400">{feature.description}</p>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-
-          {/* Use CodeUnity Section */}
-          <div ref={useCodeUnityRef} className="mb-20 scroll-mt-20">
-            <div className="flex items-center gap-4 mb-8">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 p-0.5">
-                <div className="w-full h-full rounded-full bg-black flex items-center justify-center">
-                  <span className="text-2xl">🚀</span>
-                </div>
-              </div>
-              <h2 className="text-2xl font-bold">Use CodeUnity</h2>
-            </div>
-            <div className="bg-gradient-to-br from-cyan-500/10 via-blue-500/10 to-purple-600/10 backdrop-blur-xl rounded-3xl p-8 border border-white/10">
-              <div className="grid md:grid-cols-2 gap-8">
-                <div className="space-y-6">
-                  <h3 className="text-3xl font-bold">Get Started in Minutes</h3>
-                  <div className="space-y-4">
-                    <div className="flex items-start gap-4">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                        1
-                      </div>
-                      <div>
-                        <h4 className="font-semibold mb-1">Create a Room</h4>
-                        <p className="text-gray-400">Click "Create Room" to start a new coding session</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-4">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                        2
-                      </div>
-                      <div>
-                        <h4 className="font-semibold mb-1">Share Room ID</h4>
-                        <p className="text-gray-400">Share the room ID with your team members</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-4">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                        3
-                      </div>
-                      <div>
-                        <h4 className="font-semibold mb-1">Start Coding</h4>
-                        <p className="text-gray-400">Begin coding together in real-time with AI assistance</p>
-                      </div>
-                    </div>
-                  </div>
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => scrollToSection(joinRoomRef)}
-                    className="px-8 py-3 rounded-full bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 text-white font-medium"
-                  >
-                    Start Now →
-                  </motion.button>
-                </div>
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 via-blue-500/20 to-purple-600/20 rounded-2xl blur-xl"></div>
-                  <div className="relative bg-black/30 backdrop-blur-xl rounded-2xl p-6 border border-white/10">
-                    <pre className="text-sm text-gray-300">
-                      <code>{`// Example of real-time collaboration
-function calculateSum(a, b) {
-  return a + b;
-}
-
-// AI suggests optimization
-const optimizedSum = (a, b) => a + b;
-
-// Live coding session
-// Team members can edit simultaneously
-// AI provides suggestions in real-time`}</code>
-                    </pre>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Reviews Section */}
-          <div ref={reviewsRef} className="mb-20 scroll-mt-20">
-            <div className="flex items-center gap-4 mb-8">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 p-0.5">
-                <div className="w-full h-full rounded-full bg-black flex items-center justify-center">
-                  <span className="text-2xl">⭐</span>
-                </div>
-              </div>
-              <h2 className="text-2xl font-bold">Reviews</h2>
-            </div>
-            <div className="grid md:grid-cols-3 gap-6">
-              {reviews.map((review, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.1 }}
-                  className="relative group"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-600/10 rounded-3xl blur group-hover:blur-xl transition-all duration-300"></div>
-                  <div className="relative bg-black/50 backdrop-blur-xl rounded-3xl p-6 border border-white/10">
-                    <div className="flex items-center gap-2 mb-4">
-                      {[...Array(5)].map((_, i) => (
-                        <span key={i} className="text-yellow-500">★</span>
-                      ))}
-                    </div>
-                    <p className="text-gray-400 mb-4">{review.review}</p>
-                    <div>
-                      <h4 className="font-semibold">{review.name}</h4>
-                      <p className="text-sm text-gray-500">{review.role}</p>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-
-          {/* Join Room Section */}
+      {/* Join Room Section */}
+      <div className="relative z-10 px-6 lg:px-12 pb-24">
+        <div className="max-w-md mx-auto">
           <motion.div
             ref={joinRoomRef}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="max-w-md mx-auto bg-gradient-to-br from-cyan-500/10 via-blue-500/10 to-purple-600/10 backdrop-blur-xl rounded-3xl p-8 border border-white/10"
+            className="bg-white/10 backdrop-blur-lg rounded-3xl p-8 border border-white/20"
           >
-            <h2 className="text-2xl font-bold mb-6">Join Room</h2>
+            <h2 className="text-2xl font-bold text-white mb-6 text-center">Join Room</h2>
             <div className="space-y-4">
               <input
                 type="text"
                 placeholder="Room ID"
                 value={roomId}
                 onChange={(e) => setRoomId(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-black/30 text-white placeholder-gray-400 border border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                className="w-full px-4 py-3 rounded-xl bg-white/10 text-white placeholder-white/60 border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500/50 backdrop-blur-sm"
               />
               <input
                 type="text"
                 placeholder="Username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-black/30 text-white placeholder-gray-400 border border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                className="w-full px-4 py-3 rounded-xl bg-white/10 text-white placeholder-white/60 border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500/50 backdrop-blur-sm"
               />
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={joinRoom}
-                className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 text-white font-medium hover:opacity-90 transition"
+                className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-medium hover:shadow-lg transition-shadow"
               >
                 Join Room →
               </motion.button>
             </div>
           </motion.div>
+        </div>
+      </div>
 
-          {/* Features Section - Learn More */}
-          <div ref={learnMoreRef} className="mb-20 scroll-mt-20">
-            <div className="flex items-center gap-4 mb-8">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 p-0.5">
-                <div className="w-full h-full rounded-full bg-black flex items-center justify-center">
-                  <span className="text-2xl">✨</span>
-                </div>
+      {/* Additional Sections */}
+      <div className="relative z-10 px-6 lg:px-12 pb-24">
+        <div className="max-w-7xl mx-auto space-y-32">
+          
+          {/* About Section */}
+          <div ref={aboutRef} className="text-center">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="space-y-16"
+            >
+              <div className="space-y-6">
+                <h2 className="text-4xl font-bold text-white">About CodeUnity</h2>
+                <p className="text-white/80 text-lg max-w-4xl mx-auto leading-relaxed">
+                  CodeUnity is a revolutionary AI-powered collaborative coding platform that transforms how developers work together. 
+                  Built for the modern era of remote development, we bridge the gap between individual creativity and team productivity 
+                  through seamless real-time collaboration and intelligent code assistance.
+                </p>
               </div>
-              <h2 className="text-2xl font-bold">Learn More</h2>
-            </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {features.map((feature, index) => (
+
+              {/* Mission & Vision */}
+              <div className="grid md:grid-cols-2 gap-12 max-w-6xl mx-auto">
                 <motion.div
-                  key={index}
+                  initial={{ opacity: 0, x: -30 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: 0.2 }}
+                  className="text-left"
+                >
+                  <div className="bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 backdrop-blur-xl rounded-2xl p-8 border border-white/15 h-full">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 flex items-center justify-center">
+                        <span className="text-white font-bold text-lg">🎯</span>
+                      </div>
+                      <h3 className="text-2xl font-bold text-white">Our Mission</h3>
+                    </div>
+                    <p className="text-white/70 leading-relaxed">
+                      To democratize collaborative coding by providing developers worldwide with cutting-edge tools that enhance creativity, 
+                      boost productivity, and foster innovation. We believe that great code emerges when brilliant minds work together seamlessly, 
+                      regardless of geographical boundaries.
+                    </p>
+                  </div>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, x: 30 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: 0.4 }}
+                  className="text-left"
+                >
+                  <div className="bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10 backdrop-blur-xl rounded-2xl p-8 border border-white/15 h-full">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 flex items-center justify-center">
+                        <span className="text-white font-bold text-lg">🚀</span>
+                      </div>
+                      <h3 className="text-2xl font-bold text-white">Our Vision</h3>
+                    </div>
+                    <p className="text-white/70 leading-relaxed">
+                      To become the global standard for collaborative development environments, where every line of code written is enhanced by AI, 
+                      every collaboration is frictionless, and every developer can reach their full potential through the power of unified teamwork 
+                      and intelligent assistance.
+                    </p>
+                  </div>
+                </motion.div>
+              </div>
+
+              {/* Key Benefits */}
+              <div className="space-y-12">
+                <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  transition={{ delay: index * 0.1 }}
-                  className="relative group"
+                  transition={{ delay: 0.6 }}
                 >
-                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-600/10 rounded-3xl blur group-hover:blur-xl transition-all duration-300"></div>
-                  <div className="relative bg-black/50 backdrop-blur-xl rounded-3xl p-6 border border-white/10">
-                    <div className="inline-block px-3 py-1 rounded-full bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-600/10 border border-white/10 text-sm mb-4">
-                      {feature.tag}
-                    </div>
-                    <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-                    <p className="text-gray-400">{feature.description}</p>
+                  <h3 className="text-3xl font-bold text-white mb-8">Why Choose CodeUnity?</h3>
+                  <div className="grid md:grid-cols-3 gap-8">
+                    {[
+                      {
+                        icon: "⚡",
+                        title: "Real-Time Synchronization",
+                        description: "Experience lightning-fast real-time code synchronization with zero conflicts. Watch your team's changes appear instantly with our advanced operational transformation algorithms."
+                      },
+                      {
+                        icon: "🤖",
+                        title: "AI-Powered Intelligence",
+                        description: "Leverage GitHub Copilot integration for intelligent code suggestions, automated debugging, and context-aware assistance that learns from your coding patterns."
+                      },
+                      {
+                        icon: "🌐",
+                        title: "Universal Language Support",
+                        description: "Support for 100+ programming languages with syntax highlighting, auto-completion, and language-specific optimizations for every major framework and library."
+                      },
+                      {
+                        icon: "🔒",
+                        title: "Enterprise Security",
+                        description: "Bank-grade encryption, secure room management, and privacy-first architecture ensure your code remains protected while enabling seamless collaboration."
+                      },
+                      {
+                        icon: "📱",
+                        title: "Cross-Platform Access",
+                        description: "Access your coding environment from any device with our responsive web interface, optimized for desktop development with mobile monitoring capabilities."
+                      },
+                      {
+                        icon: "🎨",
+                        title: "Beautiful Interface",
+                        description: "Stunning, distraction-free interface designed for developers, featuring customizable themes, intuitive layouts, and eye-friendly color schemes."
+                      }
+                    ].map((benefit, index) => (
+                      <motion.div
+                        key={index}
+                        initial={{ opacity: 0, y: 30 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: 0.8 + index * 0.1 }}
+                        className="bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/10 hover:border-white/20 transition-all duration-300 group"
+                      >
+                        <div className="text-4xl mb-4 group-hover:scale-110 transition-transform duration-300">
+                          {benefit.icon}
+                        </div>
+                        <h4 className="text-xl font-bold text-white mb-3">{benefit.title}</h4>
+                        <p className="text-white/70 leading-relaxed text-sm">{benefit.description}</p>
+                      </motion.div>
+                    ))}
                   </div>
                 </motion.div>
-              ))}
-            </div>
+              </div>
+
+              {/* Technical Excellence */}
+              <div className="bg-gradient-to-r from-purple-900/20 via-blue-900/15 to-cyan-800/20 backdrop-blur-xl rounded-3xl p-12 border border-white/10">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: 1.2 }}
+                  className="space-y-8"
+                >
+                  <h3 className="text-3xl font-bold text-white">Built with Modern Technology</h3>
+                  <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+                    {[
+                      {
+                        category: "Frontend",
+                        technologies: ["React 18", "Vite", "Tailwind CSS", "Framer Motion"]
+                      },
+                      {
+                        category: "Backend", 
+                        technologies: ["Node.js", "Express", "Socket.IO", "MongoDB"]
+                      },
+                      {
+                        category: "AI Integration",
+                        technologies: ["GitHub Copilot", "Monaco Editor", "Language Servers", "Code Analysis"]
+                      },
+                      {
+                        category: "Infrastructure",
+                        technologies: ["Real-time Sync", "Cloud Deployment", "CDN", "Load Balancing"]
+                      }
+                    ].map((tech, index) => (
+                      <motion.div
+                        key={index}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        whileInView={{ opacity: 1, scale: 1 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: 1.4 + index * 0.1 }}
+                        className="text-center"
+                      >
+                        <h4 className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-blue-300 to-cyan-300 mb-4">
+                          {tech.category}
+                        </h4>
+                        <ul className="space-y-2">
+                          {tech.technologies.map((item, idx) => (
+                            <li key={idx} className="text-white/70 text-sm">{item}</li>
+                          ))}
+                        </ul>
+                      </motion.div>
+                    ))}
+                  </div>
+                </motion.div>
+              </div>
+
+              {/* Call to Action */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 1.6 }}
+                className="bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 backdrop-blur-xl rounded-2xl p-8 border border-white/15"
+              >
+                <h3 className="text-2xl font-bold text-white mb-4">Ready to Transform Your Development Workflow?</h3>
+                <p className="text-white/70 mb-6 leading-relaxed">
+                  Join thousands of developers who have revolutionized their coding experience with CodeUnity. 
+                  Start collaborating smarter, coding faster, and building better software today.
+                </p>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={createRoom}
+                  className="px-8 py-3 rounded-xl bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-300"
+                >
+                  Start Coding Now →
+                </motion.button>
+              </motion.div>
+            </motion.div>
+          </div>
+
+          {/* Features Section */}
+          <div ref={featuresRef} className="text-center">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="space-y-12"
+            >
+              <h2 className="text-4xl font-bold text-white">Features</h2>
+              <div className="grid md:grid-cols-3 gap-8">
+                {[
+                  {
+                    title: "Real-time Collaboration",
+                    description: "Code together seamlessly with perfect synchronization"
+                  },
+                  {
+                    title: "AI-Powered Assistant",
+                    description: "Get intelligent code suggestions and bug fixes"
+                  },
+                  {
+                    title: "Multi-language Support",
+                    description: "Support for all major programming languages"
+                  }
+                ].map((feature, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: index * 0.1 }}
+                    className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20"
+                  >
+                    <h3 className="text-xl font-bold text-white mb-4">{feature.title}</h3>
+                    <p className="text-white/70">{feature.description}</p>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+
+          {/* How to Use Section */}
+          <div ref={howToUseRef} className="text-center">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="space-y-12"
+            >
+              <h2 className="text-4xl font-bold text-white">How to Use CodeUnity</h2>
+              <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                {[
+                  {
+                    step: "01",
+                    title: "Create or Join Room",
+                    description: "Start by creating a new coding room or join an existing one with a room ID"
+                  },
+                  {
+                    step: "02", 
+                    title: "Invite Your Team",
+                    description: "Share the room ID with your team members to collaborate in real-time"
+                  },
+                  {
+                    step: "03",
+                    title: "Code Together",
+                    description: "Write, edit, and debug code together with AI assistance and live synchronization"
+                  }
+                ].map((item, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: index * 0.2 }}
+                    className="relative"
+                  >
+                    <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 hover:bg-white/15 transition-colors">
+                      <div className="text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-600 mb-4">
+                        {item.step}
+                      </div>
+                      <h3 className="text-xl font-bold text-white mb-4">{item.title}</h3>
+                      <p className="text-white/70 leading-relaxed">{item.description}</p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+
+          {/* Testimonials Section */}
+          <div ref={testimonialsRef} className="text-center">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="space-y-12"
+            >
+              <h2 className="text-4xl font-bold text-white">What Developers Say</h2>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {[
+                  {
+                    name: "Sarah Chen",
+                    role: "Senior Frontend Developer",
+                    company: "TechCorp",
+                    quote: "CodeUnity has revolutionized how our team collaborates. The AI assistance is incredibly helpful!",
+                    rating: 5
+                  },
+                  {
+                    name: "Marcus Rodriguez", 
+                    role: "Full Stack Engineer",
+                    company: "StartupLab",
+                    quote: "Real-time collaboration has never been this smooth. It's like having the whole team in one room.",
+                    rating: 5
+                  },
+                  {
+                    name: "Emily Johnson",
+                    role: "DevOps Engineer", 
+                    company: "CloudTech",
+                    quote: "The AI-powered suggestions have saved us countless hours of debugging. Absolutely love it!",
+                    rating: 5
+                  },
+                  {
+                    name: "David Kim",
+                    role: "Backend Developer",
+                    company: "DataFlow",
+                    quote: "Perfect for remote teams. The synchronization is flawless and the interface is intuitive.",
+                    rating: 5
+                  },
+                  {
+                    name: "Lisa Thompson",
+                    role: "Mobile Developer",
+                    company: "AppStudio",
+                    quote: "CodeUnity has become an essential tool for our development workflow. Highly recommended!",
+                    rating: 5
+                  },
+                  {
+                    name: "Alex Morgan",
+                    role: "Tech Lead",
+                    company: "InnovateLab",
+                    quote: "The best collaborative coding platform I've used. The AI features are game-changing.",
+                    rating: 5
+                  }
+                ].map((testimonial, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: index * 0.1 }}
+                    className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20"
+                  >
+                    <div className="flex justify-center mb-4">
+                      {[...Array(testimonial.rating)].map((_, i) => (
+                        <span key={i} className="text-yellow-400 text-xl">★</span>
+                      ))}
+                    </div>
+                    <p className="text-white/80 mb-6 italic">"{testimonial.quote}"</p>
+                    <div className="text-center">
+                      <h4 className="text-white font-semibold">{testimonial.name}</h4>
+                      <p className="text-white/60 text-sm">{testimonial.role}</p>
+                      <p className="text-cyan-400 text-sm">{testimonial.company}</p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+
+          {/* FAQ Section */}
+          <div ref={faqRef} className="text-center">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="space-y-12"
+            >
+              <h2 className="text-4xl font-bold text-white">Frequently Asked Questions</h2>
+              <div className="max-w-3xl mx-auto space-y-6">
+                {[
+                  {
+                    question: "How many people can collaborate in one room?",
+                    answer: "CodeUnity supports up to 50 concurrent users in a single room, making it perfect for teams of any size."
+                  },
+                  {
+                    question: "What programming languages are supported?",
+                    answer: "We support over 100 programming languages including JavaScript, Python, Java, C++, React, Node.js, and many more."
+                  },
+                  {
+                    question: "Is my code secure and private?",
+                    answer: "Yes! All code is encrypted in transit and at rest. We use enterprise-grade security to protect your intellectual property."
+                  },
+                  {
+                    question: "Can I use CodeUnity for free?",
+                    answer: "Yes, we offer a free tier with basic features. Premium plans are available for advanced AI features and larger teams."
+                  },
+                  {
+                    question: "Does CodeUnity work offline?",
+                    answer: "CodeUnity requires an internet connection for real-time collaboration, but you can work locally and sync when reconnected."
+                  },
+                  {
+                    question: "How does the AI assistance work?",
+                    answer: "Our AI analyzes your code in real-time to provide suggestions, detect bugs, optimize performance, and help with documentation."
+                  }
+                ].map((faq, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: index * 0.1 }}
+                    className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 text-left"
+                  >
+                    <h3 className="text-lg font-semibold text-white mb-3">{faq.question}</h3>
+                    <p className="text-white/70 leading-relaxed">{faq.answer}</p>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
           </div>
 
           {/* Contact Section */}
-          <div ref={connectRef} className="mb-20">
-            <div className="flex items-center gap-4 mb-8">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 p-0.5">
-                <div className="w-full h-full rounded-full bg-black flex items-center justify-center">
-                  <span className="text-2xl">📬</span>
-                </div>
+          <div ref={connectRef} className="text-center">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="space-y-8"
+            >
+              <h2 className="text-4xl font-bold text-white">Connect With Us</h2>
+              <div className="flex justify-center gap-6">
+                <motion.a
+                  href="mailto:nishatayub702@gmail.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  whileHover={{ scale: 1.1 }}
+                  className="w-12 h-12 bg-white/10 backdrop-blur-lg rounded-full flex items-center justify-center border border-white/20 hover:bg-white/20 transition-colors"
+                >
+                  <MdEmail className="text-xl text-white" />
+                </motion.a>
+                <motion.a
+                  href="https://linkedin.com/in/nishatayub"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  whileHover={{ scale: 1.1 }}
+                  className="w-12 h-12 bg-white/10 backdrop-blur-lg rounded-full flex items-center justify-center border border-white/20 hover:bg-white/20 transition-colors"
+                >
+                  <FaLinkedin className="text-xl text-white" />
+                </motion.a>
+                <motion.a
+                  href="https://github.com/nishatayub"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  whileHover={{ scale: 1.1 }}
+                  className="w-12 h-12 bg-white/10 backdrop-blur-lg rounded-full flex items-center justify-center border border-white/20 hover:bg-white/20 transition-colors"
+                >
+                  <FaGithub className="text-xl text-white" />
+                </motion.a>
+                <motion.a
+                  href="https://instagram.com/nishatayub"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  whileHover={{ scale: 1.1 }}
+                  className="w-12 h-12 bg-white/10 backdrop-blur-lg rounded-full flex items-center justify-center border border-white/20 hover:bg-white/20 transition-colors"
+                >
+                  <FaInstagram className="text-xl text-white" />
+                </motion.a>
               </div>
-              <h2 className="text-2xl font-bold">Connect With Me</h2>
-            </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              <motion.a
-                href="mailto:nishatayub702@gmail.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                whileHover={{ scale: 1.05 }}
-                className="relative group"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-600/10 rounded-3xl blur group-hover:blur-xl transition-all duration-300"></div>
-                <div className="relative bg-black/50 backdrop-blur-xl rounded-3xl p-6 border border-white/10 flex items-center gap-4">
-                  <MdEmail className="text-3xl text-cyan-400" />
-                  <div>
-                    <h3 className="font-semibold">Email</h3>
-                    <p className="text-sm text-gray-400">nishatayub702@gmail.com</p>
-                  </div>
-                </div>
-              </motion.a>
-
-              <motion.a
-                href="https://linkedin.com/in/nishatayub"
-                target="_blank"
-                rel="noopener noreferrer"
-                whileHover={{ scale: 1.05 }}
-                className="relative group"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-600/10 rounded-3xl blur group-hover:blur-xl transition-all duration-300"></div>
-                <div className="relative bg-black/50 backdrop-blur-xl rounded-3xl p-6 border border-white/10 flex items-center gap-4">
-                  <FaLinkedin className="text-3xl text-blue-400" />
-                  <div>
-                    <h3 className="font-semibold">LinkedIn</h3>
-                    <p className="text-sm text-gray-400">nishatayub</p>
-                  </div>
-                </div>
-              </motion.a>
-
-              <motion.a
-                href="https://github.com/nishatayub"
-                target="_blank"
-                rel="noopener noreferrer"
-                whileHover={{ scale: 1.05 }}
-                className="relative group"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-600/10 rounded-3xl blur group-hover:blur-xl transition-all duration-300"></div>
-                <div className="relative bg-black/50 backdrop-blur-xl rounded-3xl p-6 border border-white/10 flex items-center gap-4">
-                  <FaGithub className="text-3xl text-purple-400" />
-                  <div>
-                    <h3 className="font-semibold">GitHub</h3>
-                    <p className="text-sm text-gray-400">nishatayub</p>
-                  </div>
-                </div>
-              </motion.a>
-
-              <motion.a
-                href="https://instagram.com/nishatayub"
-                target="_blank"
-                rel="noopener noreferrer"
-                whileHover={{ scale: 1.05 }}
-                className="relative group"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-600/10 rounded-3xl blur group-hover:blur-xl transition-all duration-300"></div>
-                <div className="relative bg-black/50 backdrop-blur-xl rounded-3xl p-6 border border-white/10 flex items-center gap-4">
-                  <FaInstagram className="text-3xl text-gradient-to-r from-purple-400 to-pink-400" />
-                  <div>
-                    <h3 className="font-semibold">Instagram</h3>
-                    <p className="text-sm text-gray-400">nishatayub</p>
-                  </div>
-                </div>
-              </motion.a>
-            </div>
+            </motion.div>
           </div>
+
         </div>
       </div>
 
       {/* Footer */}
-      <footer className="border-t border-white/5 py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-purple-500"></span>
-                <span className="font-medium">CodeUnity</span>
-              </div>
-              <p className="text-sm text-gray-400">
-                Empowering developers with AI-enhanced collaborative coding solutions.
+      <footer className="relative z-10 bg-black/30 backdrop-blur-lg border-t border-white/10">
+        <div className="max-w-7xl mx-auto px-6 lg:px-12 py-16">
+          <div className="grid lg:grid-cols-4 md:grid-cols-2 gap-12">
+            
+            {/* CodeUnity Brand & Quote */}
+            <div className="lg:col-span-1 space-y-6">
+              <motion.div 
+                className="flex items-center gap-3"
+                whileHover={{ scale: 1.05 }}
+              >
+                <img 
+                  src={codeunityLogo} 
+                  alt="CodeUnity" 
+                  className="h-10 w-auto object-contain"
+                />
+                <span className="text-white font-bold text-xl">CODE UNITY</span>
+              </motion.div>
+              
+              <blockquote className="text-white/70 italic text-sm leading-relaxed">
+                "Code is like humor. When you have to explain it, it's bad."<br />
+                <span className="text-cyan-400 not-italic">- Cory House</span>
+              </blockquote>
+              
+              <p className="text-white/60 text-sm leading-relaxed">
+                Empowering developers worldwide with AI-enhanced collaborative coding solutions. 
+                Building the future of software development, one line of code at a time.
               </p>
             </div>
-            
-            <div className="space-y-4">
-              <h3 className="font-semibold">Legal</h3>
-              <div className="flex flex-col space-y-2 text-sm text-gray-400">
-                <a href="#" className="hover:text-white transition">Privacy Policy</a>
-                <a href="#" className="hover:text-white transition">Terms of Service</a>
-                <span>© 2025 CodeUnity. All rights reserved.</span>
-              </div>
+
+            {/* Quick Links */}
+            <div className="space-y-6">
+              <h3 className="text-white font-semibold text-lg">Quick Links</h3>
+              <ul className="space-y-3">
+                {[
+                  { name: 'Home', ref: null },
+                  { name: 'Features', ref: featuresRef },
+                  { name: 'How to Use', ref: howToUseRef },
+                  { name: 'Testimonials', ref: testimonialsRef },
+                  { name: 'FAQ', ref: faqRef }
+                ].map((link, index) => (
+                  <li key={index}>
+                    <motion.button
+                      onClick={() => link.ref ? scrollToSection(link.ref) : window.scrollTo({ top: 0, behavior: 'smooth' })}
+                      className="text-white/70 hover:text-cyan-400 transition-colors text-sm"
+                      whileHover={{ x: 5 }}
+                    >
+                      {link.name}
+                    </motion.button>
+                  </li>
+                ))}
+              </ul>
             </div>
 
-            <div className="space-y-4">
-              <h3 className="font-semibold">Connect With Me</h3>
-              <div className="flex flex-col space-y-2 text-sm text-gray-400">
-                <a href="mailto:nishatayub702@gmail.com" className="hover:text-white transition flex items-center gap-2">
+            {/* Product */}
+            <div className="space-y-6">
+              <h3 className="text-white font-semibold text-lg">Product</h3>
+              <ul className="space-y-3">
+                {[
+                  'Real-time Collaboration',
+                  'AI Code Assistant',
+                  'Multi-language Support',
+                  'Code Execution',
+                  'Team Management',
+                  'Version Control'
+                ].map((feature, index) => (
+                  <li key={index} className="text-white/70 text-sm">
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Contact & Social */}
+            <div className="space-y-6">
+              <h3 className="text-white font-semibold text-lg">Connect With Us</h3>
+              
+              {/* Contact Info */}
+              <div className="space-y-4">
+                <motion.a
+                  href="mailto:nishatayub702@gmail.com"
+                  className="flex items-center gap-3 text-white/70 hover:text-cyan-400 transition-colors"
+                  whileHover={{ x: 5 }}
+                >
+                  <MdEmail className="text-lg" />
+                  <span className="text-sm">nishatayub702@gmail.com</span>
+                </motion.a>
+                
+                <div className="flex items-center gap-3 text-white/70">
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"></path>
-                    <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"></path>
+                    <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
                   </svg>
-                  nishatayub702@gmail.com
+                  <span className="text-sm">Remote • Worldwide</span>
+                </div>
+              </div>
+
+              {/* Social Links */}
+              <div>
+                <p className="text-white/60 text-sm mb-4">Follow us on social media</p>
+                <div className="flex gap-4">
+                  <motion.a
+                    href="https://linkedin.com/in/nishatayub"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    whileHover={{ scale: 1.1, y: -2 }}
+                    className="w-10 h-10 bg-white/10 backdrop-blur-lg rounded-lg flex items-center justify-center border border-white/20 hover:bg-blue-600/20 hover:border-blue-400/50 transition-all"
+                  >
+                    <FaLinkedin className="text-lg text-white" />
+                  </motion.a>
+                  <motion.a
+                    href="https://github.com/nishatayub"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    whileHover={{ scale: 1.1, y: -2 }}
+                    className="w-10 h-10 bg-white/10 backdrop-blur-lg rounded-lg flex items-center justify-center border border-white/20 hover:bg-gray-600/20 hover:border-gray-400/50 transition-all"
+                  >
+                    <FaGithub className="text-lg text-white" />
+                  </motion.a>
+                  <motion.a
+                    href="https://instagram.com/nishatayub"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    whileHover={{ scale: 1.1, y: -2 }}
+                    className="w-10 h-10 bg-white/10 backdrop-blur-lg rounded-lg flex items-center justify-center border border-white/20 hover:bg-pink-600/20 hover:border-pink-400/50 transition-all"
+                  >
+                    <FaInstagram className="text-lg text-white" />
+                  </motion.a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer Bottom */}
+          <div className="border-t border-white/10 mt-12 pt-8">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+              <div className="text-white/60 text-sm">
+                © 2024 CodeUnity. All rights reserved. Built with ❤️ for developers.
+              </div>
+              
+              <div className="flex gap-6 text-sm">
+                <a href="#" className="text-white/60 hover:text-cyan-400 transition-colors">
+                  Privacy Policy
                 </a>
-                <a href="https://linkedin.com/in/nishatayub" target="_blank" rel="noopener noreferrer" className="hover:text-white transition flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M16.338 16.338H13.67V12.16c0-.995-.017-2.277-1.387-2.277-1.39 0-1.601 1.086-1.601 2.207v4.248H8.014v-8.59h2.559v1.174h.037c.356-.675 1.227-1.387 2.526-1.387 2.703 0 3.203 1.778 3.203 4.092v4.711zM5.005 6.575a1.548 1.548 0 11-.003-3.096 1.548 1.548 0 01.003 3.096zm-1.337 9.763H6.34v-8.59H3.667v8.59zM17.668 1H2.328C1.595 1 1 1.581 1 2.298v15.403C1 18.418 1.595 19 2.328 19h15.34c.734 0 1.332-.582 1.332-1.299V2.298C19 1.581 18.402 1 17.668 1z"></path>
-                  </svg>
-                  LinkedIn
+                <a href="#" className="text-white/60 hover:text-cyan-400 transition-colors">
+                  Terms of Service
                 </a>
-                <a href="https://github.com/nishatayub" target="_blank" rel="noopener noreferrer" className="hover:text-white transition flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 .333A9.911 9.911 0 000 10.333c0 4.54 2.94 8.39 7.02 9.75.51.1.7-.22.7-.49v-1.71c-2.87.62-3.48-1.35-3.48-1.35-.47-1.19-1.14-1.51-1.14-1.51-.93-.64.07-.62.07-.62 1.03.07 1.57 1.06 1.57 1.06.91 1.57 2.39 1.12 2.98.86.09-.66.36-1.12.65-1.37-2.29-.26-4.7-1.14-4.7-5.09 0-1.13.4-2.05 1.06-2.77-.11-.26-.46-1.31.1-2.73 0 0 .87-.28 2.84 1.06a9.85 9.85 0 012.6-.35c.88 0 1.77.12 2.6.35 1.97-1.34 2.84-1.06 2.84-1.06.56 1.42.21 2.47.1 2.73.66.72 1.06 1.64 1.06 2.77 0 3.96-2.41 4.83-4.71 5.08.37.32.7.95.7 1.91v2.83c0 .27.19.59.71.49 4.07-1.36 7.01-5.21 7.01-9.75A9.911 9.911 0 0010 .333z" clipRule="evenodd"></path>
-                  </svg>
-                  GitHub
-                </a>
-                <a href="https://instagram.com/nishatayub" target="_blank" rel="noopener noreferrer" className="hover:text-white transition flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M10 2.685c2.377 0 2.658.01 3.598.052.867.04 1.338.185 1.65.307.415.161.712.354 1.024.666.312.312.505.609.666 1.024.122.312.267.783.307 1.65.042.94.052 1.221.052 3.598s-.01 2.658-.052 3.598c-.04.867-.185 1.338-.307 1.65-.161.415-.354.712-.666 1.024-.312.312-.609.505-1.024.666-.312.122-.783.267-1.65.307-.94.042-1.221.052-3.598.052s-2.658-.01-3.598-.052c-.867-.04-1.338-.185-1.65-.307-.415-.161-.712-.354-1.024-.666-.312-.312-.505-.609-.666-1.024-.122-.312-.267-.783-.307-1.65-.042-.94-.052-1.221-.052-3.598s.01-2.658.052-3.598c.04-.867.185-1.338.307-1.65.161-.415.354-.712.666-1.024.312-.312.609-.505 1.024-.666.312-.122.783-.267 1.65-.307.94-.042 1.221-.052 3.598-.052M10 1c-2.445 0-2.75.01-3.71.054-.958.044-1.612.196-2.185.419A4.412 4.412 0 002.525 2.525 4.412 4.412 0 001.473 4.105c-.223.573-.375 1.227-.419 2.185C1.01 7.25 1 7.555 1 10s.01 2.75.054 3.71c.044.958.196 1.612.419 2.185.23.595.538 1.1 1.052 1.614.514.514 1.019.822 1.614 1.052.573.223 1.227.375 2.185.419.96.044 1.265.054 3.71.054s2.75-.01 3.71-.054c.958-.044 1.612-.196 2.185-.419a4.412 4.412 0 001.614-1.052c.514-.514.822-1.019 1.052-1.614.223-.573.375-1.227.419-2.185.044-.96.054-1.265.054-3.71s-.01-2.75-.054-3.71c-.044-.958-.196-1.612-.419-2.185a4.412 4.412 0 00-1.052-1.614A4.412 4.412 0 0015.895 1.473c-.573-.223-1.227-.375-2.185-.419C12.75 1.01 12.445 1 10 1z"></path>
-                    <path d="M10 5.351A4.649 4.649 0 005.351 10 4.649 4.649 0 0010 14.649 4.649 4.649 0 0014.649 10 4.649 4.649 0 0010 5.351zm0 7.665A3.016 3.016 0 016.984 10 3.016 3.016 0 0110 6.984 3.016 3.016 0 0113.016 10 3.016 3.016 0 0110 13.016zm3.878-6.976a1.087 1.087 0 100-2.174 1.087 1.087 0 000 2.174z"></path>
-                  </svg>
-                  Instagram
+                <a href="#" className="text-white/60 hover:text-cyan-400 transition-colors">
+                  Cookie Policy
                 </a>
               </div>
             </div>

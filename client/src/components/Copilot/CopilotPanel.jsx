@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { FaRobot, FaPaperPlane } from 'react-icons/fa';
 
 const CopilotPanel = ({ currentFile, code }) => {
@@ -29,50 +29,49 @@ const CopilotPanel = ({ currentFile, code }) => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-900 text-white">
-      <div className="flex items-center gap-2 p-4 border-b border-gray-700">
-        <FaRobot className="text-blue-400" size={20} />
+    <div className="flex flex-col h-full bg-gradient-to-br from-purple-900/40 via-blue-900/30 to-cyan-800/25 text-white overflow-hidden">
+      <div className="flex items-center gap-2 p-4 border-b border-white/10 flex-shrink-0">
+        <FaRobot className="text-purple-300" size={20} />
         <span className="font-medium">GitHub Copilot</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4 min-w-0">
         {responses.map((item, index) => (
           <div key={index} className={`p-3 rounded-lg ${
             item.type === 'question' 
-              ? 'bg-gray-800' 
-              : 'bg-blue-600'
+              ? 'bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-cyan-500/20 border border-white/10' 
+              : 'bg-gradient-to-r from-blue-500/25 via-cyan-500/25 to-purple-500/25 border border-white/15'
           }`}>
-            <pre className="text-sm whitespace-pre-wrap">{item.content}</pre>
+            <pre className="text-sm whitespace-pre-wrap break-words overflow-hidden">{item.content}</pre>
           </div>
         ))}
       </div>
 
-      <div className="p-4 border-t border-gray-700">
-        <p className="text-sm text-gray-400 mb-2">
+      <div className="p-4 border-t border-white/10 flex-shrink-0">
+        <p className="text-sm text-white/60 mb-2 break-words">
           💡 Tip: For the best experience, use GitHub Copilot directly in your editor with:
           <br />- Inline suggestions (as you type)
           <br />- Command+I for immediate suggestions
           <br />- Command+Shift+I for Copilot Chat
         </p>
-        <form onSubmit={handleSubmit} className="flex gap-2">
+        <form onSubmit={handleSubmit} className="flex gap-2 min-w-0">
           <input
             type="text"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Type /help for Copilot commands..."
-            className="flex-1 bg-gray-800 text-white rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Type /help for commands..."
+            className="flex-1 min-w-0 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 text-white rounded-xl px-4 py-2 border border-white/15 focus:outline-none focus:ring-2 focus:ring-purple-500/30 backdrop-blur-xl"
           />
           <button
             type="submit"
             disabled={!prompt.trim()}
-            className={`px-4 py-2 rounded flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-xl flex items-center gap-2 transition-all duration-200 flex-shrink-0 ${
               !prompt.trim()
-                ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700 text-white'
+                ? 'bg-gray-700/50 text-gray-400 cursor-not-allowed'
+                : 'bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 hover:opacity-90 text-white shadow-lg shadow-purple-500/20'
             }`}
           >
             <FaPaperPlane size={14} />
-            Send
           </button>
         </form>
       </div>

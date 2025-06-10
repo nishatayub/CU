@@ -18,12 +18,11 @@ const SideBar = ({ activeTab, setActiveTab, unreadCount }) => {
   ];
 
   const handleTabClick = (tabId) => {
-    console.log('Switching to tab:', tabId); // Debug log
     setActiveTab(tabId);
   };
 
   return (
-    <div className="bg-gradient-to-b from-gray-900 via-black to-black w-20 flex-shrink-0 flex flex-col items-center py-6 border-r border-white/5 backdrop-blur-xl z-20 relative">
+    <div className="bg-gradient-to-b from-purple-900/50 via-blue-900/40 to-cyan-800/30 w-20 flex-shrink-0 flex flex-col items-center py-6 border-r border-white/10 backdrop-blur-xl z-20 relative">
       {/* SVG Filter Definition for Icon Gradient */}
       <svg width="0" height="0" className="absolute">
         <defs>
@@ -41,14 +40,14 @@ const SideBar = ({ activeTab, setActiveTab, unreadCount }) => {
             onClick={() => handleTabClick(tab.id)}
             className={`w-16 h-16 flex flex-col items-center justify-center rounded-xl transition-all duration-200 ${
               activeTab === tab.id
-                ? 'bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-cyan-500/20 border border-white/10'
-                : 'text-gray-400 hover:bg-gradient-to-r hover:from-purple-500/10 hover:via-blue-500/10 hover:to-cyan-500/10 hover:text-white'
+                ? 'bg-gradient-to-r from-purple-500/25 via-blue-500/25 to-cyan-500/25 border border-white/15 shadow-lg shadow-purple-500/20'
+                : 'text-gray-300 hover:bg-gradient-to-r hover:from-purple-500/15 hover:via-blue-500/15 hover:to-cyan-500/15 hover:text-white'
             }`}
           >
             <div className={activeTab === tab.id ? 'icon-gradient' : ''}>
               {tab.icon}
             </div>
-            <span className={`text-xs mt-1 ${activeTab === tab.id ? 'text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400' : ''}`}>
+            <span className={`text-xs mt-1 ${activeTab === tab.id ? 'text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-blue-300 to-cyan-300' : ''}`}>
               {tab.label}
             </span>
           </button>

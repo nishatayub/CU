@@ -1,14 +1,10 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-// For tldraw socket sync
-import { serializeTldraw, deserializeTldraw } from '../utils/tldraw';
 import { useLocation, useParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import MonacoEditor from '@monaco-editor/react';
 import Sidebar from '../components/Sidebar';
 import ChatBox from '../components/ChatBox';
 import FileExplorer from '../components/FileManager';
-import { Tldraw } from '@tldraw/tldraw';
-import '@tldraw/tldraw/tldraw.css';
 import axios from 'axios';
 import _ from 'lodash';
 import UserList from '../components/UserList';
@@ -47,35 +43,7 @@ const getLanguageFromFileName = (fileName) => {
 const Editor = () => {
   const { roomId } = useParams();
   const { state } = useLocation();
-  // --- Tldraw state for real-time sync ---
-  const [tldrawDoc, setTldrawDoc] = useState(null); // Store tldraw document
-  const tldrawRef = useRef();
-  // Handle tldraw changes and emit to socket
-  const handleTldrawChange = useCallback((doc) => {
-    setTldrawDoc(doc);
-    if (socketRef.current && roomId) {
-      // You may want to throttle this in production
-      socketRef.current.emit('tldraw-update', {
-        roomId,
-        doc: serializeTldraw ? serializeTldraw(doc) : doc // fallback if no util
-      });
-    }
-  }, [roomId]);
-  // Listen for tldraw updates from socket
-  useEffect(() => {
-    if (!socketRef.current) return;
-    const socket = socketRef.current;
-    const onTldrawUpdate = (payload) => {
-      if (payload.roomId === roomId && payload.doc) {
-        setTldrawDoc(deserializeTldraw ? deserializeTldraw(payload.doc) : payload.doc);
-        // Optionally, update the tldrawRef directly if needed
-      }
-    };
-    socket.on('tldraw-update', onTldrawUpdate);
-    return () => {
-      socket.off('tldraw-update', onTldrawUpdate);
-    };
-  }, [roomId]);
+  
   const socketRef = useRef(null);
   const [code, setCode] = useState('// Start typing...');
   const [users, setUsers] = useState([]);
@@ -192,7 +160,6 @@ const Editor = () => {
     socket.removeAllListeners();
 
     socket.on('connect', () => {
-      console.log('Connected to server');
       if (roomId && state?.username) {
         socket.emit('join-room', { roomId, username: state.username });
       }
@@ -208,7 +175,6 @@ const Editor = () => {
 
     // File-related socket events
     socket.on('files-list-updated', ({ files }) => {
-      console.log('Received files list update');
       const filesData = {};
       files.forEach(file => {
         filesData[file.fileName] = file.content;
@@ -217,7 +183,6 @@ const Editor = () => {
     });
 
     socket.on('file-created', ({ fileName, content }) => {
-      console.log('Received new file:', fileName);
       setFiles(prev => ({
         ...prev,
         [fileName]: content
@@ -225,7 +190,6 @@ const Editor = () => {
     });
 
     socket.on('file-deleted', ({ fileName }) => {
-      console.log('File deleted:', fileName);
       setFiles(prev => {
         const newFiles = { ...prev };
         delete newFiles[fileName];
@@ -241,7 +205,6 @@ const Editor = () => {
 
     // Listen for both immediate updates and saved updates
     socket.on('file-content-change', ({ fileName, content }) => {
-      console.log('Received real-time update:', fileName);
       setFiles(prev => ({
         ...prev,
         [fileName]: content
@@ -252,7 +215,6 @@ const Editor = () => {
     });
 
     socket.on('file-updated', ({ fileName, content }) => {
-      console.log('Received saved update:', fileName);
       setFiles(prev => ({
         ...prev,
         [fileName]: content
@@ -323,8 +285,6 @@ const Editor = () => {
         // Set as current file and update editor
         setCurrentFile(fileName);
         setCode(fileContent);
-        
-        console.log('File created and broadcasted:', fileName);
       }
     } catch (error) {
       console.error('Error creating file:', error);
@@ -360,8 +320,6 @@ const Editor = () => {
           roomId,
           fileName
         });
-        
-        console.log('File deleted and broadcasted:', fileName);
       }
     } catch (error) {
       console.error('Error deleting file:', error);
@@ -433,17 +391,17 @@ const Editor = () => {
     switch (activeTab) {
       case 'users':
         return (
-          <div className="h-full bg-gradient-to-br from-gray-900 via-black to-black backdrop-blur-xl">
+          <div className="h-full bg-gradient-to-br from-purple-900/40 via-blue-900/30 to-cyan-800/25 backdrop-blur-xl">
             <motion.div 
-              className="p-4 border-b border-white/5 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10"
+              className="p-4 border-b border-white/10 bg-gradient-to-r from-purple-500/15 via-blue-500/15 to-cyan-500/15"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
             >
               <h2 className="text-white font-medium flex items-center gap-2">
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-blue-300 to-cyan-300">
                   Active Users
                 </span>
-                <span className="px-2 py-0.5 rounded-full text-xs bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-cyan-500/20 text-white/80 border border-white/10">
+                <span className="px-2 py-0.5 rounded-full text-xs bg-gradient-to-r from-purple-500/25 via-blue-500/25 to-cyan-500/25 text-white/90 border border-white/15">
                   Live
                 </span>
               </h2>
@@ -458,17 +416,17 @@ const Editor = () => {
         );
       case 'files':
         return (
-          <div className="h-full bg-gradient-to-br from-gray-900 via-black to-black backdrop-blur-xl">
+          <div className="h-full bg-gradient-to-br from-purple-900/40 via-blue-900/30 to-cyan-800/25 backdrop-blur-xl">
             <motion.div 
-              className="p-4 border-b border-white/5 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10"
+              className="p-4 border-b border-white/10 bg-gradient-to-r from-purple-500/15 via-blue-500/15 to-cyan-500/15"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
             >
               <h2 className="text-white font-medium flex items-center gap-2">
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-blue-300 to-cyan-300">
                   Files
                 </span>
-                <span className="px-2 py-0.5 rounded-full text-xs bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-cyan-500/20 text-white/80 border border-white/10">
+                <span className="px-2 py-0.5 rounded-full text-xs bg-gradient-to-r from-purple-500/25 via-blue-500/25 to-cyan-500/25 text-white/90 border border-white/15">
                   Live
                 </span>
               </h2>
@@ -490,33 +448,20 @@ const Editor = () => {
             />
           </div>
         );
-      case 'draw':
-        return (
-          <div className="w-full h-full bg-gradient-to-br from-gray-900 via-black to-black">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-blue-500/5 to-cyan-500/5"></div>
-            <div className="relative h-full">
-              <Tldraw
-                persistenceKey={`drawing-${roomId}`}
-                className="h-full w-full"
-                autoFocus={false}
-              />
-            </div>
-          </div>
-        );
       case 'chat':
         return (
-          <div className="h-full flex flex-col bg-gradient-to-br from-gray-900 via-black to-black">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-blue-500/5 to-cyan-500/5"></div>
+          <div className="h-full flex flex-col bg-gradient-to-br from-purple-900/40 via-blue-900/30 to-cyan-800/25">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/8 via-blue-500/8 to-cyan-500/8"></div>
             <motion.div 
-              className="p-4 border-b border-white/5 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 relative"
+              className="p-4 border-b border-white/10 bg-gradient-to-r from-purple-500/15 via-blue-500/15 to-cyan-500/15 relative"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
             >
               <h2 className="text-white font-medium flex items-center gap-2">
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-blue-300 to-cyan-300">
                   Code Chat
                 </span>
-                <span className="px-2 py-0.5 rounded-full text-xs bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-cyan-500/20 text-white/80 border border-white/10">
+                <span className="px-2 py-0.5 rounded-full text-xs bg-gradient-to-r from-purple-500/25 via-blue-500/25 to-cyan-500/25 text-white/90 border border-white/15">
                   Live
                 </span>
               </h2>
@@ -532,17 +477,17 @@ const Editor = () => {
         );
       case 'copilot':
         return (
-          <div className="h-full bg-gradient-to-br from-gray-900 via-black to-black backdrop-blur-xl">
+          <div className="h-full bg-gradient-to-br from-purple-900/40 via-blue-900/30 to-cyan-800/25 backdrop-blur-xl">
             <motion.div 
-              className="p-4 border-b border-white/5 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10"
+              className="p-4 border-b border-white/10 bg-gradient-to-r from-purple-500/15 via-blue-500/15 to-cyan-500/15"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
             >
               <h2 className="text-white font-medium flex items-center gap-2">
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-blue-300 to-cyan-300">
                   AI Assistant
                 </span>
-                <span className="px-2 py-0.5 rounded-full text-xs bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-cyan-500/20 text-white/80 border border-white/10">
+                <span className="px-2 py-0.5 rounded-full text-xs bg-gradient-to-r from-purple-500/25 via-blue-500/25 to-cyan-500/25 text-white/90 border border-white/15">
                   Live
                 </span>
               </h2>
@@ -578,8 +523,13 @@ const Editor = () => {
     <div className="h-screen overflow-hidden">
       {/* Background */}
       <div className="fixed inset-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-black to-black"></div>
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 via-blue-500/5 to-cyan-500/5 mix-blend-overlay"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/95 via-blue-900/90 to-cyan-800/85"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/8 via-blue-500/8 to-cyan-500/8 mix-blend-overlay"></div>
+        {/* Floating geometric elements for visual consistency */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-gradient-to-br from-cyan-400/20 to-blue-500/15 blur-3xl"></div>
+          <div className="absolute bottom-20 left-20 w-64 h-64 rounded-full bg-gradient-to-br from-purple-400/20 to-pink-500/15 blur-2xl"></div>
+        </div>
       </div>
 
       {/* Main Content */}
@@ -588,7 +538,7 @@ const Editor = () => {
         <motion.div 
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="w-20 border-r border-white/5 bg-gradient-to-b from-gray-900 via-black to-black backdrop-blur-xl z-20"
+          className="w-20 border-r border-white/10 bg-gradient-to-b from-purple-900/50 via-blue-900/40 to-cyan-800/30 backdrop-blur-xl z-20"
         >
           <Sidebar 
             activeTab={activeTab}
@@ -599,67 +549,24 @@ const Editor = () => {
         </motion.div>
 
         {/* Main Editor Area */}
-        <div className="flex-1 flex">
-          {activeTab === 'draw' ? (
-            // Draw mode: Sidebar | Chat | Draw
-            <>
-              {/* Chat Panel */}
-              <div className="w-80 border-r border-white/5 bg-gradient-to-b from-gray-900 via-black to-black backdrop-blur-xl flex flex-col">
-                <motion.div 
-                  className="p-4 border-b border-white/5 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                >
-                  <h2 className="text-white font-medium flex items-center gap-2">
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400">
-                      Code Chat
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full text-xs bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-cyan-500/20 text-white/80 border border-white/10">
-                      Live
-                    </span>
-                  </h2>
-                </motion.div>
-                <div className="relative flex-1 overflow-hidden">
-                  <ChatBox
-                    socket={socketRef.current}
-                    roomId={roomId}
-                    username={state?.username}
-                  />
-                </div>
-              </div>
-              {/* Draw Canvas with socket logic */}
-              <div className="flex-1 relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-blue-500/5 to-cyan-500/5"></div>
-                <div className="relative h-full">
-                  <Tldraw
-                    ref={tldrawRef}
-                    persistenceKey={`drawing-${roomId}`}
-                    className="h-full w-full"
-                    autoFocus={false}
-                    document={tldrawDoc}
-                    onChange={handleTldrawChange}
-                  />
-                </div>
-              </div>
-            </>
-          ) : (
+        <div className="flex-1 flex">{
             <>
               {/* Left Panel */}
               <motion.div 
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="w-64 border-r border-white/5 bg-black/50 backdrop-blur-xl overflow-y-auto"
+                className="w-64 border-r border-white/10 bg-gradient-to-br from-purple-900/30 via-blue-900/25 to-cyan-800/20 backdrop-blur-xl overflow-y-auto overflow-x-hidden min-w-0 max-w-[256px]"
               >
                 {renderActiveTab()}
               </motion.div>
 
               {/* Main Content Area */}
               <div className="flex-1 flex flex-col min-h-0 relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-blue-500/5 to-cyan-500/5"></div>
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/8 via-blue-500/8 to-cyan-500/8"></div>
                 <div className="relative flex flex-col h-full min-h-0">
                   {/* Editor Header */}
                   <motion.div 
-                    className="p-4 border-b border-white/5 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 backdrop-blur-xl"
+                    className="p-4 border-b border-white/10 bg-gradient-to-r from-purple-500/15 via-blue-500/15 to-cyan-500/15 backdrop-blur-xl"
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
                   >
@@ -673,7 +580,7 @@ const Editor = () => {
                           animate={{ opacity: 1 }}
                           className="flex items-center gap-2"
                         >
-                          <span className="px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 text-sm border border-white/10 backdrop-blur-xl text-gray-300">
+                          <span className="px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-500/15 via-blue-500/15 to-cyan-500/15 text-sm border border-white/15 backdrop-blur-xl text-gray-200">
                             {getLanguageFromFileName(currentFile)}
                           </span>
                         </motion.div>
@@ -700,7 +607,7 @@ const Editor = () => {
                           minimap: { enabled: false },
                           fontSize: 14,
                           automaticLayout: true,
-                          background: '#0A0A0A',
+                          background: '#0F0A1A',
                           padding: { top: 16, bottom: 16 },
                           scrollbar: {
                             vertical: 'visible',
@@ -724,7 +631,7 @@ const Editor = () => {
                           roundedSelection: true,
                           wordWrap: "on"
                         }}
-                        className="border-l border-white/5"
+                        className="border-l border-white/10"
                         key={currentFile}
                       />
                     </CodeRunner>
@@ -732,7 +639,7 @@ const Editor = () => {
                 </div>
               </div>
             </>
-          )}
+}
         </div>
       </div>
     </div>
