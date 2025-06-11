@@ -1,18 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { FaRobot, FaPaperPlane, FaSpinner, FaBug, FaLightbulb, FaCode, FaMagic, FaDownload, FaCopy } from 'react-icons/fa';
+import { FaRobot, FaPaperPlane, FaSpinner, FaBug, FaCode, FaMagic, FaDownload, FaCopy, FaTrash, FaFileExport } from 'react-icons/fa';
 import axios from 'axios';
+import { useChatPersistence } from '../../hooks/useChatPersistence';
 
 const BACKEND_URL = import.meta.env.PROD 
   ? 'https://cu-669q.onrender.com'
   : 'http://localhost:8080';
 
-const CopilotPanel = ({ currentFile, code, onCodeInsert }) => {
+// Maximum number of chat messages to store (to prevent localStorage from getting too large)
+const MAX_CHAT_HISTORY = 100;
+
+const CopilotPanel = ({ currentFile, code, onCodeInsert, roomId }) => {
   const [prompt, setPrompt] = useState('');
   const [responses, setResponses] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [aiStatus, setAiStatus] = useState(null);
   
-  // Check AI service status on mount
+  // Get chat persistence hooks
+  const {
+    loadChatHistory,
+    saveMessage,
+    saveMessages,
+    clearChatHistory: clearDbChatHistory,
+    syncToLocalStorage
+  } = useChatPersistence(roomId);
+  
+  // Check AI service status on mount and load saved chats
   useEffect(() => {
     const checkAIStatus = async () => {
       try {
@@ -23,8 +36,64 @@ const CopilotPanel = ({ currentFile, code, onCodeInsert }) => {
       }
     };
     
+    // Load saved AI chat history from database
+    const loadSavedChats = async () => {
+      if (!roomId) {
+        // Fallback to localStorage if no roomId
+        try {
+          const savedChats = localStorage.getItem('codeunity_ai_chat_history');
+          if (savedChats) {
+            const parsedChats = JSON.parse(savedChats);
+            setResponses(parsedChats);
+          }
+        } catch (error) {
+          console.error('Failed to load saved AI chats from localStorage:', error);
+        }
+        return;
+      }
+      
+      try {
+        const messages = await loadChatHistory();
+        setResponses(messages || []);
+      } catch (error) {
+        console.error('Failed to load saved AI chats from database:', error);
+        
+        // Fallback to localStorage
+        try {
+          const savedChats = localStorage.getItem('codeunity_ai_chat_history');
+          if (savedChats) {
+            const parsedChats = JSON.parse(savedChats);
+            setResponses(parsedChats);
+          }
+        } catch (localError) {
+          console.error('Failed to load from localStorage fallback:', localError);
+        }
+      }
+    };
+    
     checkAIStatus();
-  }, []);
+    loadSavedChats();
+  }, [roomId, loadChatHistory]);
+
+  // Save chat history whenever responses change
+  useEffect(() => {
+    if (responses.length === 0) return;
+    
+    const saveToDatabase = async () => {
+      if (roomId) {
+        try {
+          await saveMessages(responses);
+        } catch (error) {
+          console.error('Failed to save to database, using localStorage fallback:', error);
+        }
+      }
+      
+      // Always sync to localStorage as backup
+      syncToLocalStorage(responses);
+    };
+    
+    saveToDatabase();
+  }, [responses, roomId, saveMessages, syncToLocalStorage]);
   
   // Extract code blocks from AI response
   const extractCodeBlocks = (text) => {
@@ -58,6 +127,47 @@ const CopilotPanel = ({ currentFile, code, onCodeInsert }) => {
       onCodeInsert(codeToInsert);
     }
   };
+
+  // Clear all chat history
+  const clearChatHistory = async () => {
+    setResponses([]);
+    
+    if (roomId) {
+      try {
+        await clearDbChatHistory();
+      } catch (error) {
+        console.error('Failed to clear database chat history:', error);
+      }
+    }
+    
+    // Also clear localStorage
+    localStorage.removeItem('codeunity_ai_chat_history');
+  };
+
+  // Helper function to add a new response and manage chat history limits
+  const addResponse = async (newResponse) => {
+    const responseWithId = {
+      ...newResponse,
+      id: newResponse.id || `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: newResponse.timestamp || new Date().toISOString()
+    };
+    
+    setResponses(prev => {
+      const updated = [...prev, responseWithId];
+      // Keep only the latest messages if we exceed the limit
+      return updated.length > MAX_CHAT_HISTORY ? updated.slice(-MAX_CHAT_HISTORY) : updated;
+    });
+    
+    // Save to database immediately if we have a roomId
+    if (roomId) {
+      try {
+        await saveMessage(responseWithId);
+      } catch (error) {
+        console.error('Failed to save message to database:', error);
+        // The message is still added to local state and localStorage via useEffect
+      }
+    }
+  };
   
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -68,11 +178,11 @@ const CopilotPanel = ({ currentFile, code, onCodeInsert }) => {
     setIsLoading(true);
 
     // Add user's question to responses
-    setResponses(prev => [...prev, {
+    await addResponse({
       type: 'question',
       content: userPrompt,
       timestamp: new Date().toISOString()
-    }]);
+    });
 
     try {
       // Check for special commands
@@ -82,11 +192,11 @@ const CopilotPanel = ({ currentFile, code, onCodeInsert }) => {
         await handleGeneralQuery(userPrompt);
       }
     } catch (error) {
-      setResponses(prev => [...prev, {
+      await addResponse({
         type: 'error',
         content: `Error: ${error.message || 'Something went wrong. Please try again.'}`,
         timestamp: new Date().toISOString()
-      }]);
+      });
     } finally {
       setIsLoading(false);
     }
@@ -95,78 +205,15 @@ const CopilotPanel = ({ currentFile, code, onCodeInsert }) => {
   const handleCommand = async (command) => {
     const cmd = command.toLowerCase();
     
-    if (cmd === '/help') {
-      setResponses(prev => [...prev, {
-        type: 'help',
-        content: `Available Commands:
-        
-/help - Show this help message
-/explain - Explain the current code
-/debug - Debug the current code
-/complete - Auto-complete code
-/optimize - Optimize the current code
-/comment - Add comments to code
-/refactor - Refactor the current code
-/convert <language> - Convert code to another language
-
-Examples:
-- "Write a function to sort an array"
-- "Fix the bug in this code"
-- "Add error handling"
-- "Convert this to TypeScript"`,
-        timestamp: new Date().toISOString()
-      }]);
-      return;
-    }
-
-    if (cmd === '/explain') {
-      if (!code || !currentFile) {
-        setResponses(prev => [...prev, {
-          type: 'error',
-          content: 'No code to explain. Please select a file first.',
-          timestamp: new Date().toISOString()
-        }]);
-        return;
-      }
-      await explainCode();
-      return;
-    }
-
-    if (cmd === '/debug') {
-      if (!code || !currentFile) {
-        setResponses(prev => [...prev, {
-          type: 'error', 
-          content: 'No code to debug. Please select a file first.',
-          timestamp: new Date().toISOString()
-        }]);
-        return;
-      }
-      await debugCode();
-      return;
-    }
-
-    if (cmd === '/complete') {
-      if (!code || !currentFile) {
-        setResponses(prev => [...prev, {
-          type: 'error',
-          content: 'No code to complete. Please select a file first.',
-          timestamp: new Date().toISOString()
-        }]);
-        return;
-      }
-      await completeCode();
-      return;
-    }
-
     // Handle convert command
     if (cmd.startsWith('/convert ')) {
       const targetLanguage = cmd.split(' ')[1];
       if (!targetLanguage) {
-        setResponses(prev => [...prev, {
+        await addResponse({
           type: 'error',
           content: 'Please specify a target language. Example: /convert python',
           timestamp: new Date().toISOString()
-        }]);
+        });
         return;
       }
       await convertCode(targetLanguage);
@@ -174,11 +221,11 @@ Examples:
     }
 
     // If command not recognized
-    setResponses(prev => [...prev, {
+    await addResponse({
       type: 'error',
-      content: `Unknown command: ${command}. Type /help for available commands.`,
+      content: `Unknown command: ${command}. Try asking questions directly instead.`,
       timestamp: new Date().toISOString()
-    }]);
+    });
   };
 
   const handleGeneralQuery = async (query) => {
@@ -194,66 +241,15 @@ Examples:
     console.log('AI Response:', response.data); // Debug log
 
     if (response.data.success) {
-      setResponses(prev => [...prev, {
+      await addResponse({
         type: 'answer',
         content: response.data.response,
         timestamp: new Date().toISOString(),
         aiService: response.data.aiService,
         serviceMessage: response.data.serviceMessage
-      }]);
+      });
     } else {
       throw new Error(response.data.message || 'AI service error');
-    }
-  };
-
-  const explainCode = async () => {
-    const response = await axios.post(`${BACKEND_URL}/api/ai/explain`, {
-      code: code,
-      fileName: currentFile
-    });
-
-    if (response.data.success) {
-      setResponses(prev => [...prev, {
-        type: 'explanation',
-        content: response.data.explanation,
-        timestamp: new Date().toISOString()
-      }]);
-    } else {
-      throw new Error(response.data.message || 'Explanation service error');
-    }
-  };
-
-  const debugCode = async () => {
-    const response = await axios.post(`${BACKEND_URL}/api/ai/debug`, {
-      code: code,
-      fileName: currentFile
-    });
-
-    if (response.data.success) {
-      setResponses(prev => [...prev, {
-        type: 'debug',
-        content: response.data.debug,
-        timestamp: new Date().toISOString()
-      }]);
-    } else {
-      throw new Error(response.data.message || 'Debug service error');
-    }
-  };
-
-  const completeCode = async () => {
-    const response = await axios.post(`${BACKEND_URL}/api/ai/complete`, {
-      code: code,
-      fileName: currentFile
-    });
-
-    if (response.data.success) {
-      setResponses(prev => [...prev, {
-        type: 'completion',
-        content: response.data.completion,
-        timestamp: new Date().toISOString()
-      }]);
-    } else {
-      throw new Error(response.data.message || 'Code completion service error');
     }
   };
 
@@ -266,11 +262,11 @@ Examples:
     });
 
     if (response.data.success) {
-      setResponses(prev => [...prev, {
+      await addResponse({
         type: 'conversion',
         content: response.data.response,
         timestamp: new Date().toISOString()
-      }]);
+      });
     } else {
       throw new Error(response.data.message || 'Code conversion service error');
     }
@@ -280,11 +276,7 @@ Examples:
     switch (type) {
       case 'question': return <FaRobot className="text-purple-300" size={16} />;
       case 'answer': return <FaMagic className="text-blue-300" size={16} />;
-      case 'explanation': return <FaLightbulb className="text-yellow-300" size={16} />;
-      case 'debug': return <FaBug className="text-red-300" size={16} />;
-      case 'completion': return <FaCode className="text-green-300" size={16} />;
       case 'conversion': return <FaCode className="text-cyan-300" size={16} />;
-      case 'help': return <FaLightbulb className="text-orange-300" size={16} />;
       case 'error': return <FaBug className="text-red-400" size={16} />;
       default: return <FaRobot className="text-purple-300" size={16} />;
     }
@@ -296,16 +288,8 @@ Examples:
         return 'bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-cyan-500/20 border border-white/10';
       case 'answer':
         return 'bg-gradient-to-r from-blue-500/25 via-cyan-500/25 to-purple-500/25 border border-white/15';
-      case 'explanation':
-        return 'bg-gradient-to-r from-yellow-500/20 via-orange-500/20 to-red-500/20 border border-yellow-400/20';
-      case 'debug':
-        return 'bg-gradient-to-r from-red-500/20 via-pink-500/20 to-purple-500/20 border border-red-400/20';
-      case 'completion':
-        return 'bg-gradient-to-r from-green-500/20 via-teal-500/20 to-blue-500/20 border border-green-400/20';
       case 'conversion':
         return 'bg-gradient-to-r from-cyan-500/20 via-blue-500/20 to-indigo-500/20 border border-cyan-400/20';
-      case 'help':
-        return 'bg-gradient-to-r from-orange-500/20 via-yellow-500/20 to-amber-500/20 border border-orange-400/20';
       case 'error':
         return 'bg-gradient-to-r from-red-600/25 via-red-500/25 to-pink-500/25 border border-red-400/25';
       default:
@@ -317,7 +301,7 @@ Examples:
     <div className="flex flex-col h-full bg-gradient-to-br from-purple-900/40 via-blue-900/30 to-cyan-800/25 text-white overflow-hidden">
       <div className="flex items-center gap-2 p-4 border-b border-white/10 flex-shrink-0">
         <FaRobot className="text-purple-300" size={20} />
-        <span className="font-medium">GitHub Copilot</span>
+        <span className="font-medium">AI Assistant</span>
         {aiStatus && (
           <div className="ml-auto text-xs">
             <span className={`px-2 py-1 rounded-full text-xs ${
@@ -332,6 +316,17 @@ Examples:
               {aiStatus.currentService === 'fallback' && '⚡ Basic'}
             </span>
           </div>
+        )}
+        {/* Clear Chat Button */}
+        {responses.length > 0 && (
+          <button
+            onClick={clearChatHistory}
+            className="ml-2 px-2 py-1 text-xs bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded border border-red-400/20 transition-all duration-200 flex items-center gap-1"
+            title="Clear chat history"
+          >
+            <FaTrash size={10} />
+            Clear
+          </button>
         )}
       </div>
 
@@ -352,8 +347,8 @@ Examples:
         {responses.length === 0 && (
           <div className="text-center text-white/40 space-y-3 mt-8">
             <FaRobot size={48} className="mx-auto text-purple-300/30" />
-            <p className="text-sm">Start a conversation with GitHub Copilot</p>
-            <p className="text-xs">Type <code className="px-1 py-0.5 bg-white/10 rounded">/help</code> to see available commands</p>
+            <p className="text-sm">Start a conversation with AI Assistant</p>
+            <p className="text-xs">Ask questions about your code or request programming help</p>
           </div>
         )}
         
@@ -433,43 +428,12 @@ Examples:
       </div>
 
       <div className="p-4 border-t border-white/10 flex-shrink-0 space-y-3">
-        {/* Quick Actions */}
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => setPrompt('/explain')}
-            className="px-3 py-1 text-xs bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 rounded-lg border border-yellow-400/20 transition-all duration-200"
-          >
-            <FaLightbulb className="inline mr-1" size={12} />
-            Explain
-          </button>
-          <button
-            onClick={() => setPrompt('/debug')}
-            className="px-3 py-1 text-xs bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-lg border border-red-400/20 transition-all duration-200"
-          >
-            <FaBug className="inline mr-1" size={12} />
-            Debug
-          </button>
-          <button
-            onClick={() => setPrompt('/complete')}
-            className="px-3 py-1 text-xs bg-green-500/20 hover:bg-green-500/30 text-green-300 rounded-lg border border-green-400/20 transition-all duration-200"
-          >
-            <FaCode className="inline mr-1" size={12} />
-            Complete
-          </button>
-          <button
-            onClick={() => setPrompt('/help')}
-            className="px-3 py-1 text-xs bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 rounded-lg border border-orange-400/20 transition-all duration-200"
-          >
-            Help
-          </button>
-        </div>
-
         <form onSubmit={handleSubmit} className="flex gap-2 min-w-0">
           <input
             type="text"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder={currentFile ? `Ask about ${currentFile}...` : "Type /help for commands..."}
+            placeholder={currentFile ? `Ask about ${currentFile}...` : "Ask questions about your code..."}
             className="flex-1 min-w-0 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 text-white rounded-xl px-4 py-2 border border-white/15 focus:outline-none focus:ring-2 focus:ring-purple-500/30 backdrop-blur-xl placeholder-white/40"
             disabled={isLoading}
           />
@@ -491,7 +455,7 @@ Examples:
         </form>
         
         <p className="text-xs text-white/40 break-words">
-          💡 Tip: Use commands like <code className="px-1 py-0.5 bg-white/10 rounded">/explain</code>, <code className="px-1 py-0.5 bg-white/10 rounded">/debug</code>, or ask questions about your code
+          💡 Tip: Ask questions about your code or request help with programming tasks
         </p>
       </div>
     </div>

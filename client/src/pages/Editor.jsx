@@ -14,7 +14,8 @@ import CopilotPanel from '../components/Copilot/CopilotPanel';
 import MobileError from '../components/MobileError.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotifications } from '../components/NotificationToast';
-import { FaShare, FaCopy, FaEnvelope, FaCheck, FaTimes } from 'react-icons/fa';
+import AnalyticsDashboard from '../components/AnalyticsDashboard';
+import { FaShare, FaCopy, FaEnvelope, FaCheck, FaTimes, FaChartLine } from 'react-icons/fa';
 
 const BACKEND_URL = import.meta.env.PROD 
   ? 'https://cu-669q.onrender.com'
@@ -68,6 +69,9 @@ const Editor = () => {
   });
   const [emailSending, setEmailSending] = useState(false);
   const [emailSuccess, setEmailSuccess] = useState(false);
+
+  // Analytics dashboard state
+  const [showAnalytics, setShowAnalytics] = useState(false);
 
   // Notification system
   const { showUserJoined, showUserLeft, NotificationContainer } = useNotifications();
@@ -649,6 +653,30 @@ const Editor = () => {
               currentFile={currentFile}
               code={code}
               onCodeInsert={handleCodeInsert}
+              roomId={roomId}
+              className="p-4"
+            />
+          </div>
+        );
+      case 'analytics':
+        return (
+          <div className="h-full bg-gradient-to-br from-purple-900/40 via-blue-900/30 to-cyan-800/25 backdrop-blur-xl">
+            <motion.div 
+              className="p-4 border-b border-white/10 bg-gradient-to-r from-purple-500/15 via-blue-500/15 to-cyan-500/15"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              <h2 className="text-white font-medium flex items-center gap-2">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-blue-300 to-cyan-300">
+                  Analytics Dashboard
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-xs bg-gradient-to-r from-purple-500/25 via-blue-500/25 to-cyan-500/25 text-white/90 border border-white/15">
+                  Live
+                </span>
+              </h2>
+            </motion.div>
+            <AnalyticsDashboard
+              roomId={roomId}
               className="p-4"
             />
           </div>
@@ -739,6 +767,17 @@ const Editor = () => {
                             </span>
                           </motion.div>
                         )}
+                        
+                        {/* Analytics Button */}
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => setShowAnalytics(true)}
+                          className="p-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-400/30 text-purple-300 hover:from-purple-500/30 hover:to-pink-500/30 hover:border-purple-400/50 transition-all duration-300 backdrop-blur-xl"
+                          title="View Analytics"
+                        >
+                          <FaChartLine className="w-4 h-4" />
+                        </motion.button>
                         
                         {/* Share Button */}
                         <motion.button
@@ -944,6 +983,13 @@ const Editor = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      
+      {/* Analytics Dashboard Modal */}
+      <AnalyticsDashboard
+        roomId={roomId}
+        isVisible={showAnalytics}
+        onClose={() => setShowAnalytics(false)}
+      />
     </div>
   );
 };

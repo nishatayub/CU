@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FiFile, FiTrash2 } from 'react-icons/fi';
 
 const FileExplorer = ({
-  fileTree,
+  fileTree = [], // Add default empty array
   onFileClick,
   onAdd,
   onDelete,
@@ -82,7 +82,7 @@ const FileExplorer = ({
 
       {/* Flat File List */}
       <div className="space-y-1">
-        {fileTree.filter(item => item.type !== 'folder').map((item) => (
+        {(fileTree || []).filter(item => item.type !== 'folder').map((item) => (
           <motion.div
             key={item.name}
             className={`flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gradient-to-r hover:from-purple-500/10 hover:via-blue-500/10 hover:to-cyan-500/10 transition-colors duration-200 group ${currentFile === item.name ? 'bg-gradient-to-r from-purple-500/15 via-blue-500/15 to-cyan-500/15 border border-white/10' : ''}`}

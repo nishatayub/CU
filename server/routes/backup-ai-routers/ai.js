@@ -20,7 +20,7 @@ router.post('/chat', async (req, res) => {
     }
 
     // Build context for the AI
-    let systemMessage = `You are GitHub Copilot, an AI coding assistant integrated into CodeUnity. You help developers write, debug, and improve code. You can:
+    let systemMessage = `You are an AI coding assistant integrated into CodeUnity. You help developers write, debug, and improve code. You can:
 1. Generate code based on prompts
 2. Explain existing code
 3. Debug and fix issues

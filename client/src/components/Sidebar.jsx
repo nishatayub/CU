@@ -4,17 +4,22 @@ import {
   FaFile, 
   FaPencilAlt, 
   FaRobot, 
-  FaComments 
+  FaComments,
+  FaLock 
 } from 'react-icons/fa';
 import '../styles/icon-gradient.css';
 
 const SideBar = ({ activeTab, setActiveTab, unreadCount }) => {
+  const isAuthenticated = !!localStorage.getItem('codeunity_token');
+  const usageCount = parseInt(localStorage.getItem('codeunity_usage_count') || '0', 10);
+  const isLimitReached = usageCount >= 3;
+
   const tabs = [
-    { id: 'files', icon: <FaFile size={24} />, label: 'Files' },
-    { id: 'users', icon: <FaUsers size={24} />, label: 'Users' },
-    { id: 'draw', icon: <FaPencilAlt size={24} />, label: 'Draw' },
-    { id: 'chat', icon: <FaComments size={24} />, label: 'Chat', badge: unreadCount },
-    { id: 'copilot', icon: <FaRobot size={24} />, label: 'Copilot' }
+    { id: 'files', icon: <FaFile size={24} />, label: 'Files', restricted: false },
+    { id: 'users', icon: <FaUsers size={24} />, label: 'Users', restricted: !isAuthenticated && isLimitReached },
+    { id: 'draw', icon: <FaPencilAlt size={24} />, label: 'Draw', restricted: !isAuthenticated && isLimitReached },
+    { id: 'chat', icon: <FaComments size={24} />, label: 'Chat', badge: unreadCount, restricted: !isAuthenticated && isLimitReached },
+    { id: 'copilot', icon: <FaRobot size={24} />, label: 'Copilot', restricted: !isAuthenticated && isLimitReached }
   ];
 
   const handleTabClick = (tabId) => {
@@ -43,6 +48,7 @@ const SideBar = ({ activeTab, setActiveTab, unreadCount }) => {
                 ? 'bg-gradient-to-r from-purple-500/25 via-blue-500/25 to-cyan-500/25 border border-white/15 shadow-lg shadow-purple-500/20'
                 : 'text-gray-300 hover:bg-gradient-to-r hover:from-purple-500/15 hover:via-blue-500/15 hover:to-cyan-500/15 hover:text-white'
             }`}
+            disabled={tab.restricted}
           >
             <div className={activeTab === tab.id ? 'icon-gradient' : ''}>
               {tab.icon}
@@ -55,6 +61,9 @@ const SideBar = ({ activeTab, setActiveTab, unreadCount }) => {
             <div className="absolute -top-1 right-1 z-10 bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center border border-white/20 shadow-lg shadow-purple-500/20">
               <span className="text-xs font-medium">{tab.badge}</span>
             </div>
+          )}
+          {tab.restricted && (
+            <FaLock className="absolute -top-1 -right-1 w-3 h-3 text-yellow-400" />
           )}
         </div>
       ))}

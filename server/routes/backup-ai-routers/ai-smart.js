@@ -180,7 +180,7 @@ router.post('/chat', async (req, res) => {
           apiKey: process.env.OPENAI_API_KEY
         });
 
-        let systemMessage = `You are GitHub Copilot, an AI coding assistant integrated into CodeUnity. You help developers write, debug, and improve code.`;
+        let systemMessage = `You are an AI coding assistant integrated into CodeUnity. You help developers write, debug, and improve code.`;
         let userMessage = prompt;
 
         if (code && fileName) {
