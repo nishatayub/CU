@@ -12,8 +12,9 @@ import CodeRunner from '../components/CodeExecution/CodeRunner';
 import { getTemplateForFile } from '../utils/codeTemplates';
 import CopilotPanel from '../components/Copilot/CopilotPanel';
 import MobileError from '../components/MobileError.jsx';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNotifications } from '../components/NotificationToast';
+import { FaShare, FaCopy, FaEnvelope, FaCheck, FaTimes } from 'react-icons/fa';
 
 const BACKEND_URL = import.meta.env.PROD 
   ? 'https://cu-669q.onrender.com'
@@ -57,6 +58,17 @@ const Editor = () => {
   // Initialize ref after state declaration
   const activeTabRef = useRef(activeTab);
 
+  // Sharing functionality
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
+  const [emailForm, setEmailForm] = useState({
+    recipientEmail: '',
+    recipientName: '',
+    message: ''
+  });
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSuccess, setEmailSuccess] = useState(false);
+
   // Notification system
   const { showUserJoined, showUserLeft, NotificationContainer } = useNotifications();
 
@@ -97,6 +109,64 @@ const Editor = () => {
       debouncedSaveRef.current(fileName, content);
     }
   }, []);
+
+  // Sharing functions
+  const handleCopyRoomId = useCallback(async () => {
+    try {
+      const roomUrl = `${window.location.origin}${window.location.pathname}`;
+      await navigator.clipboard.writeText(roomUrl);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy room URL:', error);
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = `${window.location.origin}${window.location.pathname}`;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    }
+  }, []);
+
+  const handleShareViaEmail = useCallback(async () => {
+    if (!emailForm.recipientEmail) {
+      alert('Please enter recipient email address');
+      return;
+    }
+
+    setEmailSending(true);
+    try {
+      const roomUrl = `${window.location.origin}${window.location.pathname}`;
+      
+      const response = await axios.post(`${BACKEND_URL}/api/email/share-room`, {
+        recipientEmail: emailForm.recipientEmail,
+        recipientName: emailForm.recipientName,
+        senderName: state?.username,
+        roomId: roomId,
+        roomUrl: roomUrl,
+        message: emailForm.message
+      });
+
+      if (response.data.success) {
+        setEmailSuccess(true);
+        setEmailForm({ recipientEmail: '', recipientName: '', message: '' });
+        setTimeout(() => {
+          setEmailSuccess(false);
+          setShowShareModal(false);
+        }, 2000);
+      } else {
+        alert(response.data.message || 'Failed to send email');
+      }
+    } catch (error) {
+      console.error('Error sending email:', error);
+      alert(error.response?.data?.message || 'Failed to send email. Please try again.');
+    } finally {
+      setEmailSending(false);
+    }
+  }, [emailForm, roomId, state?.username]);
 
   const fetchFiles = useCallback(async () => {
     if (!roomId) return;
@@ -266,6 +336,18 @@ const Editor = () => {
   useEffect(() => {
     activeTabRef.current = activeTab;
   }, [activeTab]);
+
+  // Handle escape key to close share modal
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && showShareModal) {
+        setShowShareModal(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [showShareModal]);
 
   // Add this useEffect to load the last opened file
   useEffect(() => {
@@ -646,17 +728,29 @@ const Editor = () => {
                       <h2 className="text-white font-medium">
                         {currentFile || 'No File Selected'}
                       </h2>
-                      {currentFile && (
-                        <motion.div
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          className="flex items-center gap-2"
+                      <div className="flex items-center gap-2">
+                        {currentFile && (
+                          <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                          >
+                            <span className="px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-500/15 via-blue-500/15 to-cyan-500/15 text-sm border border-white/15 backdrop-blur-xl text-gray-200">
+                              {getLanguageFromFileName(currentFile)}
+                            </span>
+                          </motion.div>
+                        )}
+                        
+                        {/* Share Button */}
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => setShowShareModal(true)}
+                          className="p-2 rounded-lg bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-400/30 text-cyan-300 hover:from-cyan-500/30 hover:to-blue-500/30 hover:border-cyan-400/50 transition-all duration-300 backdrop-blur-xl"
+                          title="Share Room"
                         >
-                          <span className="px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-500/15 via-blue-500/15 to-cyan-500/15 text-sm border border-white/15 backdrop-blur-xl text-gray-200">
-                            {getLanguageFromFileName(currentFile)}
-                          </span>
-                        </motion.div>
-                      )}
+                          <FaShare className="w-4 h-4" />
+                        </motion.button>
+                      </div>
                     </div>
                   </motion.div>
 
@@ -717,6 +811,139 @@ const Editor = () => {
       
       {/* Notification Container */}
       <NotificationContainer />
+      
+      {/* Share Modal - Portal style overlay */}
+      <AnimatePresence>
+        {showShareModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
+            onClick={() => setShowShareModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-gradient-to-br from-purple-900/95 via-blue-900/95 to-cyan-800/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl max-w-md w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6">
+                {/* Modal Header */}
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-white font-semibold text-lg flex items-center gap-2">
+                    <FaShare className="text-cyan-400" />
+                    Share Room
+                  </h3>
+                  <button
+                    onClick={() => setShowShareModal(false)}
+                    className="text-white/50 hover:text-white/80 transition-colors p-1"
+                  >
+                    <FaTimes className="w-4 h-4" />
+                  </button>
+                </div>
+                
+                {/* Room ID Display */}
+                <div className="mb-6 p-4 bg-black/30 rounded-lg border border-white/10">
+                  <p className="text-sm text-gray-400 mb-2">Room ID</p>
+                  <p className="text-white font-mono text-sm break-all">{roomId}</p>
+                </div>
+
+                {/* Share Options */}
+                <div className="space-y-4">
+                  <button
+                    onClick={handleCopyRoomId}
+                    className="w-full flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-400/30 text-green-300 hover:from-green-500/30 hover:to-emerald-500/30 hover:border-green-400/50 transition-all duration-300"
+                  >
+                    {copySuccess ? <FaCheck className="w-5 h-5" /> : <FaCopy className="w-5 h-5" />}
+                    <span>
+                      {copySuccess ? 'Copied to Clipboard!' : 'Copy Room URL'}
+                    </span>
+                  </button>
+
+                  {/* Email Sharing Form */}
+                  <div className="border border-white/20 rounded-lg p-4 bg-black/20">
+                    <h4 className="text-white font-medium mb-3 flex items-center gap-2">
+                      <FaEnvelope className="w-4 h-4" />
+                      Send Email Invitation
+                    </h4>
+                    
+                    <div className="space-y-3">
+                      <div>
+                        <input
+                          type="email"
+                          placeholder="Recipient's email address *"
+                          value={emailForm.recipientEmail}
+                          onChange={(e) => setEmailForm(prev => ({ ...prev, recipientEmail: e.target.value }))}
+                          className="w-full px-3 py-2 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 border border-white/15 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                          required
+                        />
+                      </div>
+                      
+                      <div>
+                        <input
+                          type="text"
+                          placeholder="Recipient's name (optional)"
+                          value={emailForm.recipientName}
+                          onChange={(e) => setEmailForm(prev => ({ ...prev, recipientName: e.target.value }))}
+                          className="w-full px-3 py-2 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 border border-white/15 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                        />
+                      </div>
+                      
+                      <div>
+                        <textarea
+                          placeholder="Personal message (optional)"
+                          value={emailForm.message}
+                          onChange={(e) => setEmailForm(prev => ({ ...prev, message: e.target.value }))}
+                          rows={3}
+                          className="w-full px-3 py-2 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 border border-white/15 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 resize-none"
+                        />
+                      </div>
+                      
+                      <button
+                        onClick={handleShareViaEmail}
+                        disabled={emailSending || !emailForm.recipientEmail}
+                        className={`w-full flex items-center justify-center gap-3 p-3 rounded-lg transition-all duration-300 ${
+                          emailSuccess 
+                            ? 'bg-gradient-to-r from-green-500/30 to-emerald-500/30 border border-green-400/50 text-green-300'
+                            : emailSending || !emailForm.recipientEmail
+                            ? 'bg-gray-600/30 border border-gray-500/30 text-gray-400 cursor-not-allowed'
+                            : 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-400/30 text-blue-300 hover:from-blue-500/30 hover:to-purple-500/30 hover:border-blue-400/50'
+                        }`}
+                      >
+                        {emailSending ? (
+                          <>
+                            <div className="w-5 h-5 border-2 border-blue-300 border-t-transparent rounded-full animate-spin"></div>
+                            <span>Sending...</span>
+                          </>
+                        ) : emailSuccess ? (
+                          <>
+                            <FaCheck className="w-5 h-5" />
+                            <span>Email Sent!</span>
+                          </>
+                        ) : (
+                          <>
+                            <FaEnvelope className="w-5 h-5" />
+                            <span>Send Invitation</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Instructions */}
+                <div className="mt-6 p-3 bg-cyan-500/10 border border-cyan-400/20 rounded-lg">
+                  <p className="text-cyan-300 text-sm">
+                    💡 Share the room URL with your team members to collaborate in real-time!
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
