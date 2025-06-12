@@ -26,8 +26,7 @@ const AnalyticsDashboard = ({ roomId, isVisible, onClose }) => {
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
-      
-      // Simulate analytics data (in production, this would come from actual analytics)
+
       const mockAnalytics = {
         totalSessions: Math.floor(Math.random() * 100) + 50,
         totalFiles: Math.floor(Math.random() * 50) + 10,
@@ -43,7 +42,6 @@ const AnalyticsDashboard = ({ roomId, isVisible, onClose }) => {
         ]
       };
 
-      // Add some delay to simulate real API call
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       setAnalytics(mockAnalytics);

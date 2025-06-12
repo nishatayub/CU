@@ -11,9 +11,18 @@ if (process.env.GOOGLE_AI_API_KEY) {
 
 // Check if Gemini is available
 const isGeminiAvailable = () => {
-  return genAI && process.env.GOOGLE_AI_API_KEY && 
+  const hasKey = process.env.GOOGLE_AI_API_KEY && 
          process.env.GOOGLE_AI_API_KEY !== 'your_google_ai_key_here' && 
          process.env.GOOGLE_AI_API_KEY !== '';
+  
+  // Debug logging for production
+  console.log('🔍 AI Service Debug:', {
+    hasKey: !!hasKey,
+    genAI: !!genAI,
+    keyLength: process.env.GOOGLE_AI_API_KEY ? process.env.GOOGLE_AI_API_KEY.length : 0
+  });
+  
+  return genAI && hasKey;
 };
 
 // Query Gemini

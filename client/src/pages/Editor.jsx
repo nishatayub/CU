@@ -5,6 +5,7 @@ import MonacoEditor from '@monaco-editor/react';
 import Sidebar from '../components/Sidebar';
 import ChatBox from '../components/ChatBox';
 import FileExplorer from '../components/FileManager';
+import TldrawWithRealtime from '../components/TldrawWithRealtime';
 import axios from 'axios';
 import _ from 'lodash';
 import UserList from '../components/UserList';
@@ -544,6 +545,210 @@ const Editor = () => {
     }
   };
 
+  // Function to render left panel content (for non-draw modes)
+  const renderLeftPanel = () => {
+    // If draw mode is active, show chat in left panel
+    if (activeTab === 'draw') {
+      return (
+        <div className="h-full flex flex-col bg-gradient-to-br from-purple-900/40 via-blue-900/30 to-cyan-800/25">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/8 via-blue-500/8 to-cyan-500/8"></div>
+          <motion.div 
+            className="p-4 border-b border-white/10 bg-gradient-to-r from-purple-500/15 via-blue-500/15 to-cyan-500/15 relative"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            <h2 className="text-white font-medium flex items-center gap-2">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-blue-300 to-cyan-300">
+                Code Chat
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-xs bg-gradient-to-r from-purple-500/25 via-blue-500/25 to-cyan-500/25 text-white/90 border border-white/15">
+                Live
+              </span>
+            </h2>
+          </motion.div>
+          <div className="relative flex-1 overflow-hidden">
+            <ChatBox
+              socket={socketRef.current}
+              roomId={roomId}
+              username={state?.username}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    // For other modes, show the selected tab content
+    return renderActiveTab();
+  };
+
+  // Function to render main content area
+  const renderMainContent = () => {
+    if (activeTab === 'draw') {
+      return (
+        <div className="flex-1 flex flex-col min-h-0 relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/8 via-blue-500/8 to-cyan-500/8"></div>
+          <div className="relative flex flex-col h-full min-h-0">
+            {/* Draw Header */}
+            <motion.div 
+              className="p-4 border-b border-white/10 bg-gradient-to-r from-purple-500/15 via-blue-500/15 to-cyan-500/15 backdrop-blur-xl"
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="flex items-center justify-between">
+                <h2 className="text-white font-medium flex items-center gap-2">
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-blue-300 to-cyan-300">
+                    Collaborative Drawing
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-xs bg-gradient-to-r from-purple-500/25 via-blue-500/25 to-cyan-500/25 text-white/90 border border-white/15">
+                    Live
+                  </span>
+                </h2>
+                <div className="flex items-center gap-2">
+                  {/* Analytics Button */}
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setShowAnalytics(true)}
+                    className="p-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-400/30 text-purple-300 hover:from-purple-500/30 hover:to-pink-500/30 hover:border-purple-400/50 transition-all duration-300 backdrop-blur-xl"
+                    title="View Analytics"
+                  >
+                    <FaChartLine className="w-4 h-4" />
+                  </motion.button>
+                  
+                  {/* Share Button */}
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setShowShareModal(true)}
+                    className="p-2 rounded-lg bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-400/30 text-cyan-300 hover:from-cyan-500/30 hover:to-blue-500/30 hover:border-cyan-400/50 transition-all duration-300 backdrop-blur-xl"
+                    title="Share Room"
+                  >
+                    <FaShare className="w-4 h-4" />
+                  </motion.button>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* TlDraw Canvas */}
+            <div className="flex-1 min-h-0 overflow-hidden">
+              <TldrawWithRealtime
+                socket={socketRef.current}
+                roomId={roomId}
+                onError={(error) => console.error('TlDraw error:', error)}
+                isPersistent={false}
+                isBackground={false}
+              />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // For non-draw modes, show the code editor
+    return (
+      <div className="flex-1 flex flex-col min-h-0 relative">
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/8 via-blue-500/8 to-cyan-500/8"></div>
+        <div className="relative flex flex-col h-full min-h-0">
+          {/* Editor Header */}
+          <motion.div 
+            className="p-4 border-b border-white/10 bg-gradient-to-r from-purple-500/15 via-blue-500/15 to-cyan-500/15 backdrop-blur-xl"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-white font-medium">
+                {currentFile || 'No File Selected'}
+              </h2>
+              <div className="flex items-center gap-2">
+                {currentFile && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                  >
+                    <span className="px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-500/15 via-blue-500/15 to-cyan-500/15 text-sm border border-white/15 backdrop-blur-xl text-gray-200">
+                      {getLanguageFromFileName(currentFile)}
+                    </span>
+                  </motion.div>
+                )}
+                
+                {/* Analytics Button */}
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowAnalytics(true)}
+                  className="p-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-400/30 text-purple-300 hover:from-purple-500/30 hover:to-pink-500/30 hover:border-purple-400/50 transition-all duration-300 backdrop-blur-xl"
+                  title="View Analytics"
+                >
+                  <FaChartLine className="w-4 h-4" />
+                </motion.button>
+                
+                {/* Share Button */}
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowShareModal(true)}
+                  className="p-2 rounded-lg bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-400/30 text-cyan-300 hover:from-cyan-500/30 hover:to-blue-500/30 hover:border-cyan-400/50 transition-all duration-300 backdrop-blur-xl"
+                  title="Share Room"
+                >
+                  <FaShare className="w-4 h-4" />
+                </motion.button>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Code Editor and Output Panel */}
+          <div className="flex-1 min-h-0 flex flex-col">
+            <CodeRunner 
+              currentFile={currentFile} 
+              code={code}
+              onRunCode={handleRunCode}
+            >
+              <MonacoEditor
+                height="100%"
+                language={currentFile ? getLanguageFromFileName(currentFile) : 'javascript'}
+                theme="vs-dark"
+                defaultValue={code}
+                onChange={(value) => {
+                  if (value !== code) handleCodeChanges(value);
+                }}
+                options={{
+                  minimap: { enabled: false },
+                  fontSize: 14,
+                  automaticLayout: true,
+                  background: '#0F0A1A',
+                  padding: { top: 16, bottom: 16 },
+                  scrollbar: {
+                    vertical: 'visible',
+                    horizontal: 'visible',
+                    useShadows: false,
+                    verticalScrollbarSize: 8,
+                    horizontalScrollbarSize: 8
+                  },
+                  lineHeight: 1.6,
+                  letterSpacing: 0.5,
+                  fontFamily: "'JetBrains Mono', monospace",
+                  smoothScrolling: true,
+                  cursorBlinking: "smooth",
+                  cursorSmoothCaretAnimation: true,
+                  renderWhitespace: "none",
+                  glyphMargin: false,
+                  renderLineHighlight: "all",
+                  contextmenu: true,
+                  mouseWheelZoom: true,
+                  quickSuggestions: true,
+                  roundedSelection: true,
+                  wordWrap: "on"
+                }}
+                className="border-l border-white/10"
+                key={currentFile}
+              />
+            </CodeRunner>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'users':
@@ -731,120 +936,18 @@ const Editor = () => {
         </motion.div>
 
         {/* Main Editor Area */}
-        <div className="flex-1 flex">{
-            <>
-              {/* Left Panel */}
-              <motion.div 
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="w-64 border-r border-white/10 bg-gradient-to-br from-purple-900/30 via-blue-900/25 to-cyan-800/20 backdrop-blur-xl overflow-y-auto overflow-x-hidden min-w-0 max-w-[256px]"
-              >
-                {renderActiveTab()}
-              </motion.div>
+        <div className="flex-1 flex">
+          {/* Left Panel */}
+          <motion.div 
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="w-64 border-r border-white/10 bg-gradient-to-br from-purple-900/30 via-blue-900/25 to-cyan-800/20 backdrop-blur-xl overflow-y-auto overflow-x-hidden min-w-0 max-w-[256px]"
+          >
+            {renderLeftPanel()}
+          </motion.div>
 
-              {/* Main Content Area */}
-              <div className="flex-1 flex flex-col min-h-0 relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/8 via-blue-500/8 to-cyan-500/8"></div>
-                <div className="relative flex flex-col h-full min-h-0">
-                  {/* Editor Header */}
-                  <motion.div 
-                    className="p-4 border-b border-white/10 bg-gradient-to-r from-purple-500/15 via-blue-500/15 to-cyan-500/15 backdrop-blur-xl"
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <h2 className="text-white font-medium">
-                        {currentFile || 'No File Selected'}
-                      </h2>
-                      <div className="flex items-center gap-2">
-                        {currentFile && (
-                          <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                          >
-                            <span className="px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-500/15 via-blue-500/15 to-cyan-500/15 text-sm border border-white/15 backdrop-blur-xl text-gray-200">
-                              {getLanguageFromFileName(currentFile)}
-                            </span>
-                          </motion.div>
-                        )}
-                        
-                        {/* Analytics Button */}
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => setShowAnalytics(true)}
-                          className="p-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-400/30 text-purple-300 hover:from-purple-500/30 hover:to-pink-500/30 hover:border-purple-400/50 transition-all duration-300 backdrop-blur-xl"
-                          title="View Analytics"
-                        >
-                          <FaChartLine className="w-4 h-4" />
-                        </motion.button>
-                        
-                        {/* Share Button */}
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => setShowShareModal(true)}
-                          className="p-2 rounded-lg bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-400/30 text-cyan-300 hover:from-cyan-500/30 hover:to-blue-500/30 hover:border-cyan-400/50 transition-all duration-300 backdrop-blur-xl"
-                          title="Share Room"
-                        >
-                          <FaShare className="w-4 h-4" />
-                        </motion.button>
-                      </div>
-                    </div>
-                  </motion.div>
-
-                  {/* Code Editor and Output Panel */}
-                  <div className="flex-1 min-h-0 flex flex-col">
-                    <CodeRunner 
-                      currentFile={currentFile} 
-                      code={code}
-                      onRunCode={handleRunCode}
-                    >
-                      <MonacoEditor
-                        height="100%"
-                        language={currentFile ? getLanguageFromFileName(currentFile) : 'javascript'}
-                        theme="vs-dark"
-                        defaultValue={code}
-                        onChange={(value) => {
-                          if (value !== code) handleCodeChanges(value);
-                        }}
-                        options={{
-                          minimap: { enabled: false },
-                          fontSize: 14,
-                          automaticLayout: true,
-                          background: '#0F0A1A',
-                          padding: { top: 16, bottom: 16 },
-                          scrollbar: {
-                            vertical: 'visible',
-                            horizontal: 'visible',
-                            useShadows: false,
-                            verticalScrollbarSize: 8,
-                            horizontalScrollbarSize: 8
-                          },
-                          lineHeight: 1.6,
-                          letterSpacing: 0.5,
-                          fontFamily: "'JetBrains Mono', monospace",
-                          smoothScrolling: true,
-                          cursorBlinking: "smooth",
-                          cursorSmoothCaretAnimation: true,
-                          renderWhitespace: "none",
-                          glyphMargin: false,
-                          renderLineHighlight: "all",
-                          contextmenu: true,
-                          mouseWheelZoom: true,
-                          quickSuggestions: true,
-                          roundedSelection: true,
-                          wordWrap: "on"
-                        }}
-                        className="border-l border-white/10"
-                        key={currentFile}
-                      />
-                    </CodeRunner>
-                  </div>
-                </div>
-              </div>
-            </>
-}
+          {/* Main Content Area */}
+          {renderMainContent()}
         </div>
       </div>
       
