@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import codeunityLogo from '../assets/CodeUnity.png';
+import codeunityLogo from '../assets/logo.png';
 import { FaDesktop, FaLaptop } from 'react-icons/fa';
 
 function MobileError() {

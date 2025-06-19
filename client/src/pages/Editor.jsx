@@ -796,7 +796,7 @@ const Editor = () => {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="w-80 bg-black/30 backdrop-blur-xl border border-gray-800/30 rounded-2xl overflow-hidden shadow-xl shadow-black/20"
+              className="w-80 bg-black/30 backdrop-blur-xl border-2 border-pink-500/40 rounded-2xl overflow-hidden shadow-xl shadow-pink-500/10"
             >
               <div className="h-full overflow-y-auto">
                 {renderActiveTab()}
@@ -805,10 +805,10 @@ const Editor = () => {
           )}
 
           {/* Center Area - Code Editor or TlDraw */}
-          <div className="flex-1 flex flex-col bg-black/20 backdrop-blur-xl border border-gray-800/30 rounded-2xl overflow-hidden shadow-xl shadow-black/20">
+          <div className="flex-1 flex flex-col bg-black/20 backdrop-blur-xl border-2 border-pink-500/40 rounded-2xl overflow-hidden shadow-xl shadow-pink-500/10">
             {/* Header */}
             <motion.div 
-              className="h-14 px-6 flex items-center justify-between border-b border-gray-800/30"
+              className="h-14 px-6 flex items-center justify-between border-b border-pink-500/20"
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
             >
@@ -854,7 +854,7 @@ const Editor = () => {
             <div className="flex-1 p-4">
               {activeTab === 'draw' ? (
                 /* TlDraw Whiteboard */
-                <div className="h-full rounded-lg border border-gray-800/20 overflow-hidden bg-black/30 backdrop-blur-sm shadow-lg">
+                <div className="h-full rounded-lg border-2 border-pink-500/40 overflow-hidden bg-black/30 backdrop-blur-sm shadow-lg shadow-pink-500/10">
                   <TldrawWithRealtime
                     socket={socketRef.current}
                     roomId={roomId}
@@ -864,7 +864,7 @@ const Editor = () => {
                 </div>
               ) : (
                 /* Code Editor */
-                <div className="h-full rounded-lg border border-gray-800/20 overflow-hidden bg-black/30 backdrop-blur-sm shadow-lg">
+                <div className="h-full rounded-lg border-2 border-pink-500/40 overflow-hidden bg-black/30 backdrop-blur-sm shadow-lg shadow-pink-500/10">
                   <CodeRunner 
                     currentFile={currentFile} 
                     code={code}

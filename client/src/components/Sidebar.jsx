@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { FaFolder, FaUsers, FaPaintBrush, FaComments, FaRobot, FaLock } from 'react-icons/fa';
-import codeunityLogo from '../assets/CodeUnity.png';
+import codeunityLogo from '../assets/logo.png';
 
 const SideBar = ({ activeTab, setActiveTab, unreadCount }) => {
   const isAuthenticated = !!localStorage.getItem('codeunity_token');
