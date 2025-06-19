@@ -601,10 +601,9 @@ const Editor = () => {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => {
-                // Trigger file creation
                 const fileName = prompt('Enter file name:');
                 if (fileName) {
-                  handleAddNode({ name: fileName, type: 'file' });
+                  handleAddNode(fileName, 'file');
                 }
               }}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-pink-500/20 to-purple-600/20 border border-pink-500/30 hover:border-pink-500/50 text-pink-400 hover:from-pink-500/30 hover:to-purple-600/30 transition-all duration-200"
