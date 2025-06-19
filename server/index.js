@@ -186,6 +186,44 @@ app.get('/health', async (req, res) => {
   res.status(httpStatus).json(healthData);
 });
 
+// Debug endpoint that works even when MongoDB is down
+app.get('/debug', (req, res) => {
+  const mongoStatus = mongoose.connection.readyState;
+  const statusMap = {
+    0: 'disconnected',
+    1: 'connected',
+    2: 'connecting',
+    3: 'disconnecting'
+  };
+
+  const debugInfo = {
+    timestamp: new Date().toISOString(),
+    environment: {
+      NODE_ENV: process.env.NODE_ENV,
+      PORT: process.env.PORT,
+      mongodb_uri_exists: !!process.env.MONGODB_URI,
+      mongodb_uri_preview: process.env.MONGODB_URI ? 
+        process.env.MONGODB_URI.replace(/\/\/[^:]+:[^@]+@/, '//***:***@').substring(0, 80) + '...' : 
+        'NOT_SET'
+    },
+    server: {
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      platform: process.platform,
+      nodeVersion: process.version
+    },
+    mongoose: {
+      version: mongoose.version,
+      connection_state: mongoStatus,
+      connection_status: statusMap[mongoStatus] || 'unknown',
+      host: mongoose.connection.host || 'not_connected',
+      name: mongoose.connection.name || 'not_connected'
+    }
+  };
+
+  res.json(debugInfo);
+});
+
 // Database connection status endpoint
 app.get('/db-status', async (req, res) => {
   try {
