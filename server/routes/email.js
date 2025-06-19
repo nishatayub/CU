@@ -35,10 +35,10 @@ router.post('/share-room', async (req, res) => {
       message 
     } = req.body;
 
-    if (!recipientEmail || !roomId || !roomUrl) {
+    if (!recipientEmail || !roomId) {
       return res.status(400).json({
         success: false,
-        message: 'Recipient email, room ID, and room URL are required'
+        message: 'Recipient email and room ID are required'
       });
     }
 
@@ -134,13 +134,17 @@ router.post('/share-room', async (req, res) => {
           ${message ? `<p><em>"${message}"</em></p>` : ''}
           
           <div class="room-info">
-            <h3>📍 Room Details:</h3>
+            <h3>📍 How to Join:</h3>
             <p><strong>Room ID:</strong> <span class="room-id">${roomId}</span></p>
-            <p><strong>Direct Link:</strong> <a href="${roomUrl}" style="color: #667eea;">${roomUrl}</a></p>
+            <p>1. Go to <a href="https://codeunity.dev" style="color: #667eea;">CodeUnity</a></p>
+            <p>2. Enter the Room ID above to join the collaboration session</p>
           </div>
           
           <div style="text-align: center;">
-            <a href="${roomUrl}" class="btn">🚀 Join Collaboration Room</a>
+            <p style="background: #f8f9fa; padding: 15px; border-radius: 6px; margin: 20px 0;">
+              <strong>Room ID: ${roomId}</strong><br>
+              <small>Copy this ID and enter it on CodeUnity to join the session</small>
+            </p>
           </div>
           
           <h3>✨ What you can do:</h3>
@@ -152,7 +156,7 @@ router.post('/share-room', async (req, res) => {
             <li>📁 Manage files and projects together</li>
           </ul>
           
-          <p><small>💡 <strong>Tip:</strong> Bookmark the room URL for easy access later!</small></p>
+          <p><small>💡 <strong>Tip:</strong> Save the Room ID for easy access to continue collaborating!</small></p>
         </div>
         
         <div class="footer">
@@ -172,11 +176,10 @@ ${senderName || 'Someone'} has invited you to join a collaborative coding sessio
 
 ${message ? `Message: "${message}"` : ''}
 
-Room Details:
+How to Join:
 - Room ID: ${roomId}
-- Direct Link: ${roomUrl}
-
-Join the collaboration room: ${roomUrl}
+- Go to CodeUnity (https://codeunity.dev)
+- Enter the Room ID above to join the collaboration session
 
 What you can do:
 - Write and edit code together in real-time

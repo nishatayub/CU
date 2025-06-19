@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { FaFolder, FaUsers, FaPaintBrush, FaComments, FaRobot, FaLock } from 'react-icons/fa';
+import codeunityLogo from '../assets/CodeUnity.png';
 
 const SideBar = ({ activeTab, setActiveTab, unreadCount }) => {
   const isAuthenticated = !!localStorage.getItem('codeunity_token');
@@ -24,8 +25,12 @@ const SideBar = ({ activeTab, setActiveTab, unreadCount }) => {
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.1 }}
       >
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center shadow-lg">
-          <span className="text-white text-lg font-bold">C</span>
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg">
+          <img 
+            src={codeunityLogo} 
+            alt="CodeUnity" 
+            className="w-8 h-8 object-contain rounded-lg"
+          />
         </div>
       </motion.div>
 
