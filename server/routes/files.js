@@ -3,21 +3,104 @@ const mongoose = require('mongoose');
 const router = express.Router();
 const File = require('../models/file');
 
+// In-memory fallback storage for when MongoDB is unavailable
+const memoryStore = new Map();
+
+// Helper function to check if MongoDB is available
+const isMongoAvailable = () => {
+  return mongoose.connection.readyState === 1;
+};
+
+// Helper function to test MongoDB connectivity
+const testMongoConnection = async () => {
+  try {
+    await mongoose.connection.db.admin().ping();
+    return true;
+  } catch (error) {
+    console.warn('⚠️ MongoDB ping failed:', error.message);
+    return false;
+  }
+};
+
 // Get all files in a room
 router.get('/:roomId', async (req, res) => {
   try {
     const { roomId } = req.params;
-    const files = await File.getByRoom(roomId);
+    
+    console.log(`📂 Getting files for room: ${roomId}`);
+    console.log(`🔍 MongoDB connection state: ${mongoose.connection.readyState}`);
+    
+    // Check MongoDB connection status
+    if (mongoose.connection.readyState !== 1) {
+      console.error('❌ MongoDB not connected for GET files, state:', mongoose.connection.readyState);
+      return res.status(503).json({
+        success: false,
+        message: 'Database connection unavailable',
+        error: `MongoDB state: ${mongoose.connection.readyState}`,
+        retry: true
+      });
+    }
+    
+    // Test connection with a quick ping
+    try {
+      await mongoose.connection.db.admin().ping();
+      console.log('✅ MongoDB ping successful for GET files');
+    } catch (pingError) {
+      console.error('❌ MongoDB ping failed for GET files:', pingError.message);
+      return res.status(503).json({
+        success: false,
+        message: 'Database connection test failed',
+        error: pingError.message,
+        retry: true
+      });
+    }
+    
+    // Set up operation timeout for file fetching
+    const operationTimeout = new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(new Error('Get files operation timeout after 25 seconds'));
+      }, 25000);
+    });
+    
+    // Perform the database operation with timeout
+    const dbOperation = File.getByRoom(roomId);
+    const files = await Promise.race([dbOperation, operationTimeout]);
+    
+    console.log(`✅ Retrieved ${files.length} files for room: ${roomId}`);
     res.json({ 
       success: true,
       files: files.map(f => f.toFileInfo())
     });
   } catch (error) {
-    console.error('Error getting files:', error);
+    console.error('❌ Error getting files:', error.message);
+    console.error('🔍 Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack?.split('\n')[0],
+      mongoState: mongoose.connection.readyState
+    });
+    
+    let errorMessage = 'Failed to get files';
+    let shouldRetry = false;
+    
+    if (error.message.includes('timeout') || error.name === 'MongoTimeoutError') {
+      errorMessage = 'Database operation timed out while fetching files.';
+      shouldRetry = true;
+    } else if (error.name === 'MongoNetworkError' || error.message.includes('network')) {
+      errorMessage = 'Database network error while fetching files.';
+      shouldRetry = true;
+    } else if (error.message.includes('Get files operation timeout')) {
+      errorMessage = 'Operation timed out after 25 seconds while fetching files.';
+      shouldRetry = true;
+    }
+    
     res.status(500).json({
       success: false,
-      message: 'Failed to get files',
-      error: error.message
+      message: errorMessage,
+      error: error.message,
+      retry: shouldRetry,
+      timestamp: new Date().toISOString(),
+      mongoState: mongoose.connection.readyState
     });
   }
 });

@@ -22,19 +22,22 @@ if (!MONGODB_URI) {
 console.log('🔄 Attempting to connect to MongoDB...');
 console.log('📍 Environment:', process.env.NODE_ENV || 'development');
 
-// Enhanced MongoDB connection options for production stability
+// Disable global buffering at the mongoose level - CRITICAL for production
+mongoose.set('bufferCommands', false);
+
+// Enhanced MongoDB connection options for production stability  
 const mongooseOptions = {
   // Connection timeouts
-  serverSelectionTimeoutMS: 45000, // 45 seconds for server selection
-  connectTimeoutMS: 45000, // 45 seconds for initial connection
-  socketTimeoutMS: 45000, // 45 seconds for socket operations
+  serverSelectionTimeoutMS: 60000, // 60 seconds for server selection
+  connectTimeoutMS: 60000, // 60 seconds for initial connection
+  socketTimeoutMS: 60000, // 60 seconds for socket operations
   
   // Mongoose-specific buffering configuration
   bufferCommands: false, // Disable mongoose buffering
   
   // Connection pool settings
   maxPoolSize: 10, // Maximum number of connections
-  minPoolSize: 2, // Minimum number of connections
+  minPoolSize: 1, // Minimum number of connections (reduce for serverless)
   maxIdleTimeMS: 30000, // Close connections after 30 seconds of inactivity
   
   // Reliability settings
@@ -43,7 +46,11 @@ const mongooseOptions = {
   w: 'majority', // Write concern
   
   // Heartbeat settings
-  heartbeatFrequencyMS: 10000 // Send heartbeat every 10 seconds
+  heartbeatFrequencyMS: 10000, // Send heartbeat every 10 seconds
+  
+  // Additional serverless optimizations
+  maxConnecting: 2, // Limit concurrent connections
+  family: 4 // Use IPv4
 };
 
 mongoose
