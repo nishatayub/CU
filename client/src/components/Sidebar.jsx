@@ -1,13 +1,6 @@
 import React from 'react';
-import { 
-  FaUsers, 
-  FaFile, 
-  FaPencilAlt, 
-  FaRobot, 
-  FaComments,
-  FaLock 
-} from 'react-icons/fa';
-import '../styles/icon-gradient.css';
+import { motion } from 'framer-motion';
+import { FaFolder, FaUsers, FaPaintBrush, FaComments, FaRobot, FaLock } from 'react-icons/fa';
 
 const SideBar = ({ activeTab, setActiveTab, unreadCount }) => {
   const isAuthenticated = !!localStorage.getItem('codeunity_token');
@@ -15,58 +8,102 @@ const SideBar = ({ activeTab, setActiveTab, unreadCount }) => {
   const isLimitReached = usageCount >= 3;
 
   const tabs = [
-    { id: 'files', icon: <FaFile size={24} />, label: 'Files', restricted: false },
-    { id: 'users', icon: <FaUsers size={24} />, label: 'Users', restricted: !isAuthenticated && isLimitReached },
-    { id: 'draw', icon: <FaPencilAlt size={24} />, label: 'Draw', restricted: !isAuthenticated && isLimitReached },
-    { id: 'chat', icon: <FaComments size={24} />, label: 'Chat', badge: unreadCount, restricted: !isAuthenticated && isLimitReached },
-    { id: 'copilot', icon: <FaRobot size={24} />, label: 'Copilot', restricted: !isAuthenticated && isLimitReached }
+    { id: 'files', icon: FaFolder, label: 'Files', restricted: false },
+    { id: 'users', icon: FaUsers, label: 'Users', restricted: !isAuthenticated && isLimitReached },
+    { id: 'draw', icon: FaPaintBrush, label: 'Draw', restricted: !isAuthenticated && isLimitReached },
+    { id: 'chat', icon: FaComments, label: 'Chat', badge: unreadCount, restricted: !isAuthenticated && isLimitReached },
+    { id: 'copilot', icon: FaRobot, label: 'AI', restricted: !isAuthenticated && isLimitReached }
   ];
 
-  const handleTabClick = (tabId) => {
-    setActiveTab(tabId);
-  };
-
   return (
-    <div className="bg-gradient-to-b from-purple-900/50 via-blue-900/40 to-cyan-800/30 w-20 flex-shrink-0 flex flex-col items-center py-6 border-r border-white/10 backdrop-blur-xl z-20 relative">
-      {/* SVG Filter Definition for Icon Gradient */}
-      <svg width="0" height="0" className="absolute">
-        <defs>
-          <linearGradient id="purple-blue-cyan-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#a78bfa" /> {/* purple-400 */}
-            <stop offset="50%" stopColor="#60a5fa" /> {/* blue-400 */}
-            <stop offset="100%" stopColor="#22d3ee" /> {/* cyan-400 */}
-          </linearGradient>
-        </defs>
-      </svg>
-      
-      {tabs.map((tab) => (
-        <div key={tab.id} className="relative mb-4">
-          <button
-            onClick={() => handleTabClick(tab.id)}
-            className={`w-16 h-16 flex flex-col items-center justify-center rounded-xl transition-all duration-200 ${
-              activeTab === tab.id
-                ? 'bg-gradient-to-r from-purple-500/25 via-blue-500/25 to-cyan-500/25 border border-white/15 shadow-lg shadow-purple-500/20'
-                : 'text-gray-300 hover:bg-gradient-to-r hover:from-purple-500/15 hover:via-blue-500/15 hover:to-cyan-500/15 hover:text-white'
-            }`}
-            disabled={tab.restricted}
-          >
-            <div className={activeTab === tab.id ? 'icon-gradient' : ''}>
-              {tab.icon}
-            </div>
-            <span className={`text-xs mt-1 ${activeTab === tab.id ? 'text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-blue-300 to-cyan-300' : ''}`}>
-              {tab.label}
-            </span>
-          </button>
-          {tab.badge > 0 && (
-            <div className="absolute -top-1 right-1 z-10 bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center border border-white/20 shadow-lg shadow-purple-500/20">
-              <span className="text-xs font-medium">{tab.badge}</span>
-            </div>
-          )}
-          {tab.restricted && (
-            <FaLock className="absolute -top-1 -right-1 w-3 h-3 text-yellow-400" />
-          )}
+    <div className="h-full flex flex-col items-center py-6 relative">
+      {/* Logo/Brand */}
+      <motion.div 
+        className="mb-8"
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.1 }}
+      >
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center shadow-lg">
+          <span className="text-white text-lg font-bold">C</span>
         </div>
-      ))}
+      </motion.div>
+
+      {/* Navigation Icons */}
+      <div className="flex flex-col gap-3 flex-1">
+        {tabs.map((tab, index) => (
+          <motion.div
+            key={tab.id}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 + index * 0.05 }}
+            className="relative"
+          >
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => !tab.restricted && setActiveTab(tab.id)}
+              disabled={tab.restricted}
+              className={`
+                relative w-12 h-12 rounded-xl flex items-center justify-center 
+                transition-all duration-300 group
+                ${activeTab === tab.id
+                  ? 'bg-gradient-to-br from-pink-500/20 to-purple-600/20 border border-pink-500/30 shadow-lg shadow-pink-500/10'
+                  : tab.restricted
+                  ? 'hover:bg-gray-800/20 border border-transparent text-gray-600 cursor-not-allowed'
+                  : 'hover:bg-gray-800/30 border border-transparent hover:border-gray-700/30 text-gray-400 hover:text-white'
+                }
+              `}
+              title={tab.restricted ? `${tab.label} (Premium)` : tab.label}
+            >
+              <tab.icon className={`w-4 h-4 transition-all duration-200 ${
+                activeTab === tab.id 
+                  ? 'text-pink-400 scale-110' 
+                  : tab.restricted 
+                  ? 'text-gray-600' 
+                  : 'text-gray-400 group-hover:text-white group-hover:scale-105'
+              }`} />
+              
+              {/* Active indicator */}
+              {activeTab === tab.id && (
+                <motion.div
+                  layoutId="activeTab"
+                  className="absolute -left-1 top-1/2 transform -translate-y-1/2 w-1 h-6 bg-gradient-to-b from-pink-500 to-purple-600 rounded-full"
+                  initial={false}
+                />
+              )}
+              
+              {/* Badge for chat */}
+              {tab.badge > 0 && (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-pink-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg"
+                >
+                  <span className="text-white text-xs font-medium">
+                    {tab.badge > 99 ? '99+' : tab.badge}
+                  </span>
+                </motion.div>
+              )}
+              
+              {/* Restriction indicator */}
+              {tab.restricted && (
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-500 rounded-full flex items-center justify-center">
+                  <FaLock className="w-2 h-2 text-black" />
+                </div>
+              )}
+            </motion.button>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Bottom accent */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5 }}
+        className="mt-4 w-8 h-px bg-gradient-to-r from-transparent via-pink-500/30 to-transparent"
+      />
     </div>
   );
 };

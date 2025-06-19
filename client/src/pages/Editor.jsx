@@ -5,7 +5,6 @@ import MonacoEditor from '@monaco-editor/react';
 import Sidebar from '../components/Sidebar';
 import ChatBox from '../components/ChatBox';
 import FileExplorer from '../components/FileManager';
-import TldrawWithRealtime from '../components/TldrawWithRealtime';
 import axios from 'axios';
 import _ from 'lodash';
 import UserList from '../components/UserList';
@@ -13,10 +12,11 @@ import CodeRunner from '../components/CodeExecution/CodeRunner';
 import { getTemplateForFile } from '../utils/codeTemplates';
 import CopilotPanel from '../components/Copilot/CopilotPanel';
 import MobileError from '../components/MobileError.jsx';
+import TldrawWithRealtime from '../components/TldrawWithRealtime';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotifications } from '../components/NotificationToast';
-import AnalyticsDashboard from '../components/AnalyticsDashboard';
-import { FaShare, FaCopy, FaEnvelope, FaCheck, FaTimes, FaChartLine } from 'react-icons/fa';
+import { FaShare, FaCopy, FaEnvelope, FaCheck, FaTimes, FaFolder, FaUsers, FaPaintBrush, FaComments, FaRobot } from 'react-icons/fa';
+import { FiPlus } from 'react-icons/fi';
 
 const BACKEND_URL = import.meta.env.PROD 
   ? 'https://cu-669q.onrender.com'
@@ -71,11 +71,8 @@ const Editor = () => {
   const [emailSending, setEmailSending] = useState(false);
   const [emailSuccess, setEmailSuccess] = useState(false);
 
-  // Analytics dashboard state
-  const [showAnalytics, setShowAnalytics] = useState(false);
-
   // Notification system
-  const { showUserJoined, showUserLeft, NotificationContainer } = useNotifications();
+  const { NotificationContainer } = useNotifications();
 
   // Create persistent debounced save function
   const debouncedSaveRef = useRef();
@@ -118,15 +115,14 @@ const Editor = () => {
   // Sharing functions
   const handleCopyRoomId = useCallback(async () => {
     try {
-      const roomUrl = `${window.location.origin}${window.location.pathname}`;
-      await navigator.clipboard.writeText(roomUrl);
+      await navigator.clipboard.writeText(roomId);
       setCopySuccess(true);
       setTimeout(() => setCopySuccess(false), 2000);
     } catch (error) {
-      console.error('Failed to copy room URL:', error);
+      console.error('Failed to copy room ID:', error);
       // Fallback for older browsers
       const textArea = document.createElement('textarea');
-      textArea.value = `${window.location.origin}${window.location.pathname}`;
+      textArea.value = roomId;
       document.body.appendChild(textArea);
       textArea.select();
       document.execCommand('copy');
@@ -134,7 +130,7 @@ const Editor = () => {
       setCopySuccess(true);
       setTimeout(() => setCopySuccess(false), 2000);
     }
-  }, []);
+  }, [roomId]);
 
   const handleShareViaEmail = useCallback(async () => {
     if (!emailForm.recipientEmail) {
@@ -144,14 +140,11 @@ const Editor = () => {
 
     setEmailSending(true);
     try {
-      const roomUrl = `${window.location.origin}${window.location.pathname}`;
-      
       const response = await axios.post(`${BACKEND_URL}/api/email/share-room`, {
         recipientEmail: emailForm.recipientEmail,
         recipientName: emailForm.recipientName,
         senderName: state?.username,
         roomId: roomId,
-        roomUrl: roomUrl,
         message: emailForm.message
       });
 
@@ -255,13 +248,13 @@ const Editor = () => {
       setUsers(userList.map(u => u.username));
     });
 
-    // User join/leave notification events
-    socket.on('user-joined', ({ username }) => {
-      showUserJoined(username);
+    // User join/leave notification events - handled in chat as system messages
+    socket.on('user-joined', () => {
+      // Join notifications are now sent as system messages in chat
     });
 
-    socket.on('user-left', ({ username }) => {
-      showUserLeft(username);
+    socket.on('user-left', () => {
+      // Leave notifications are now sent as system messages in chat
     });
 
     // File-related socket events
@@ -322,17 +315,32 @@ const Editor = () => {
 
     // --- CHAT NOTIFICATION HANDLER ---
     socket.on('chat-notification', () => {
-      setUnreadCount(prev => activeTabRef.current !== 'chat' ? prev + 1 : prev);
+      // Don't show notifications if chat is visible (either in chat tab or TlDraw mode)
+      setUnreadCount(prev => (activeTabRef.current !== 'chat' && activeTabRef.current !== 'draw') ? prev + 1 : prev);
+    });
+
+    // Chat unread message tracking
+    socket.on('receive-message', () => {
+      // Only increment unread count if chat is not visible (not in chat tab or TlDraw mode)
+      if (activeTabRef.current !== 'chat' && activeTabRef.current !== 'draw') {
+        setUnreadCount(prev => prev + 1);
+      }
+    });
+
+    // Reset unread count when chat tab becomes active
+    socket.on('user-typing', () => {
+      // Handle typing indicators if needed
     });
 
     return () => {
       socket.removeAllListeners();
       socket.disconnect();
     };
-  }, [roomId, state?.username, showUserJoined, showUserLeft]);
+  }, [roomId, state?.username]);
 
   useEffect(() => {
-    if (activeTab === 'chat') {
+    // Reset unread count when chat is visible (either in chat tab or TlDraw mode)
+    if (activeTab === 'chat' || activeTab === 'draw') {
       setUnreadCount(0);
     }
   }, [activeTab]);
@@ -362,8 +370,8 @@ const Editor = () => {
     }
   }, [files, handleFileClick]); // Include handleFileClick in dependencies
 
-  const handleAddNode = async (fileName) => {
-    console.log('handleAddNode called with fileName:', fileName);
+  const handleAddNode = async (fileName, type = 'file') => {
+    console.log('handleAddNode called with fileName:', fileName, 'type:', type);
     console.log('roomId:', roomId);
     console.log('BACKEND_URL:', BACKEND_URL);
     
@@ -545,350 +553,130 @@ const Editor = () => {
     }
   };
 
-  // Function to render left panel content (for non-draw modes)
-  const renderLeftPanel = () => {
-    // If draw mode is active, show chat in left panel
-    if (activeTab === 'draw') {
-      return (
-        <div className="h-full flex flex-col bg-gradient-to-br from-purple-900/40 via-blue-900/30 to-cyan-800/25">
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/8 via-blue-500/8 to-cyan-500/8"></div>
-          <motion.div 
-            className="p-4 border-b border-white/10 bg-gradient-to-r from-purple-500/15 via-blue-500/15 to-cyan-500/15 relative"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
-            <h2 className="text-white font-medium flex items-center gap-2">
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-blue-300 to-cyan-300">
-                Code Chat
-              </span>
-              <span className="px-2 py-0.5 rounded-full text-xs bg-gradient-to-r from-purple-500/25 via-blue-500/25 to-cyan-500/25 text-white/90 border border-white/15">
-                Live
-              </span>
-            </h2>
-          </motion.div>
-          <div className="relative flex-1 overflow-hidden">
-            <ChatBox
-              socket={socketRef.current}
-              roomId={roomId}
-              username={state?.username}
-            />
-          </div>
-        </div>
-      );
-    }
-
-    // For other modes, show the selected tab content
-    return renderActiveTab();
-  };
-
-  // Function to render main content area
-  const renderMainContent = () => {
-    if (activeTab === 'draw') {
-      return (
-        <div className="flex-1 flex flex-col min-h-0 relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/8 via-blue-500/8 to-cyan-500/8"></div>
-          <div className="relative flex flex-col h-full min-h-0">
-            {/* Draw Header */}
-            <motion.div 
-              className="p-4 border-b border-white/10 bg-gradient-to-r from-purple-500/15 via-blue-500/15 to-cyan-500/15 backdrop-blur-xl"
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <div className="flex items-center justify-between">
-                <h2 className="text-white font-medium flex items-center gap-2">
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-blue-300 to-cyan-300">
-                    Collaborative Drawing
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full text-xs bg-gradient-to-r from-purple-500/25 via-blue-500/25 to-cyan-500/25 text-white/90 border border-white/15">
-                    Live
-                  </span>
-                </h2>
-                <div className="flex items-center gap-2">
-                  {/* Analytics Button */}
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setShowAnalytics(true)}
-                    className="p-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-400/30 text-purple-300 hover:from-purple-500/30 hover:to-pink-500/30 hover:border-purple-400/50 transition-all duration-300 backdrop-blur-xl"
-                    title="View Analytics"
-                  >
-                    <FaChartLine className="w-4 h-4" />
-                  </motion.button>
-                  
-                  {/* Share Button */}
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setShowShareModal(true)}
-                    className="p-2 rounded-lg bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-400/30 text-cyan-300 hover:from-cyan-500/30 hover:to-blue-500/30 hover:border-cyan-400/50 transition-all duration-300 backdrop-blur-xl"
-                    title="Share Room"
-                  >
-                    <FaShare className="w-4 h-4" />
-                  </motion.button>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* TlDraw Canvas */}
-            <div className="flex-1 min-h-0 overflow-hidden">
-              <TldrawWithRealtime
-                socket={socketRef.current}
-                roomId={roomId}
-                onError={(error) => console.error('TlDraw error:', error)}
-                isPersistent={false}
-                isBackground={false}
-              />
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    // For non-draw modes, show the code editor
-    return (
-      <div className="flex-1 flex flex-col min-h-0 relative">
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/8 via-blue-500/8 to-cyan-500/8"></div>
-        <div className="relative flex flex-col h-full min-h-0">
-          {/* Editor Header */}
-          <motion.div 
-            className="p-4 border-b border-white/10 bg-gradient-to-r from-purple-500/15 via-blue-500/15 to-cyan-500/15 backdrop-blur-xl"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <div className="flex items-center justify-between">
-              <h2 className="text-white font-medium">
-                {currentFile || 'No File Selected'}
-              </h2>
-              <div className="flex items-center gap-2">
-                {currentFile && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                  >
-                    <span className="px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-500/15 via-blue-500/15 to-cyan-500/15 text-sm border border-white/15 backdrop-blur-xl text-gray-200">
-                      {getLanguageFromFileName(currentFile)}
-                    </span>
-                  </motion.div>
-                )}
-                
-                {/* Analytics Button */}
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setShowAnalytics(true)}
-                  className="p-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-400/30 text-purple-300 hover:from-purple-500/30 hover:to-pink-500/30 hover:border-purple-400/50 transition-all duration-300 backdrop-blur-xl"
-                  title="View Analytics"
-                >
-                  <FaChartLine className="w-4 h-4" />
-                </motion.button>
-                
-                {/* Share Button */}
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setShowShareModal(true)}
-                  className="p-2 rounded-lg bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-400/30 text-cyan-300 hover:from-cyan-500/30 hover:to-blue-500/30 hover:border-cyan-400/50 transition-all duration-300 backdrop-blur-xl"
-                  title="Share Room"
-                >
-                  <FaShare className="w-4 h-4" />
-                </motion.button>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Code Editor and Output Panel */}
-          <div className="flex-1 min-h-0 flex flex-col">
-            <CodeRunner 
-              currentFile={currentFile} 
-              code={code}
-              onRunCode={handleRunCode}
-            >
-              <MonacoEditor
-                height="100%"
-                language={currentFile ? getLanguageFromFileName(currentFile) : 'javascript'}
-                theme="vs-dark"
-                defaultValue={code}
-                onChange={(value) => {
-                  if (value !== code) handleCodeChanges(value);
-                }}
-                options={{
-                  minimap: { enabled: false },
-                  fontSize: 14,
-                  automaticLayout: true,
-                  background: '#0F0A1A',
-                  padding: { top: 16, bottom: 16 },
-                  scrollbar: {
-                    vertical: 'visible',
-                    horizontal: 'visible',
-                    useShadows: false,
-                    verticalScrollbarSize: 8,
-                    horizontalScrollbarSize: 8
-                  },
-                  lineHeight: 1.6,
-                  letterSpacing: 0.5,
-                  fontFamily: "'JetBrains Mono', monospace",
-                  smoothScrolling: true,
-                  cursorBlinking: "smooth",
-                  cursorSmoothCaretAnimation: true,
-                  renderWhitespace: "none",
-                  glyphMargin: false,
-                  renderLineHighlight: "all",
-                  contextmenu: true,
-                  mouseWheelZoom: true,
-                  quickSuggestions: true,
-                  roundedSelection: true,
-                  wordWrap: "on"
-                }}
-                className="border-l border-white/10"
-                key={currentFile}
-              />
-            </CodeRunner>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
+  // Render active tab content with minimal design
   const renderActiveTab = () => {
-    switch (activeTab) {
-      case 'users':
-        return (
-          <div className="h-full bg-gradient-to-br from-purple-900/40 via-blue-900/30 to-cyan-800/25 backdrop-blur-xl">
-            <motion.div 
-              className="p-4 border-b border-white/10 bg-gradient-to-r from-purple-500/15 via-blue-500/15 to-cyan-500/15"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-            >
-              <h2 className="text-white font-medium flex items-center gap-2">
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-blue-300 to-cyan-300">
-                  Active Users
+    const panelConfig = {
+      files: { title: 'File Explorer', icon: FaFolder, color: 'blue' },
+      users: { title: 'Active Users', icon: FaUsers, color: 'green' },
+      draw: { title: 'Whiteboard', icon: FaPaintBrush, color: 'purple' },
+      chat: { title: 'Code Chat', icon: FaComments, color: 'pink' },
+      copilot: { title: 'AI Assistant', icon: FaRobot, color: 'purple' }
+    };
+
+    const config = panelConfig[activeTab];
+    if (!config) return null;
+
+    const IconComponent = config.icon;
+
+    return (
+      <div className="h-full flex flex-col">
+        {/* Minimal Panel Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-800/30 bg-pink-500/5">
+          <div className="flex items-center gap-3">
+            <IconComponent className={`w-4 h-4 ${
+              config.color === 'pink' ? 'text-pink-400' :
+              config.color === 'purple' ? 'text-purple-400' :
+              config.color === 'blue' ? 'text-blue-400' :
+              'text-green-400'
+            }`} />
+            <div>
+              <span className="font-medium text-white text-sm">{config.title}</span>
+              <div className="flex items-center gap-2 mt-1">
+                <div className={`w-2 h-2 rounded-full ${
+                  config.color === 'pink' ? 'bg-pink-500' :
+                  config.color === 'purple' ? 'bg-purple-500' :
+                  config.color === 'blue' ? 'bg-blue-500' :
+                  'bg-green-500'
+                } animate-pulse`}></div>
+                <span className="text-xs text-gray-400">
+                  {activeTab === 'users' ? `${users.length} online` : 'Live'}
                 </span>
-                <span className="px-2 py-0.5 rounded-full text-xs bg-gradient-to-r from-purple-500/25 via-blue-500/25 to-cyan-500/25 text-white/90 border border-white/15">
-                  Live
-                </span>
-              </h2>
-            </motion.div>
-            <UserList 
-              socket={socketRef.current}
-              currentUser={state?.username}
-              users={Array.from(new Set([state?.username, ...users].filter(Boolean)))}
-              className="p-4 space-y-2"
-            />
+              </div>
+            </div>
           </div>
-        );
-      case 'files':
-        return (
-          <div className="h-full bg-gradient-to-br from-purple-900/40 via-blue-900/30 to-cyan-800/25 backdrop-blur-xl">
-            <motion.div 
-              className="p-4 border-b border-white/10 bg-gradient-to-r from-purple-500/15 via-blue-500/15 to-cyan-500/15"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+          
+          {/* Action Buttons */}
+          {activeTab === 'files' && (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                // Trigger file creation
+                const fileName = prompt('Enter file name:');
+                if (fileName) {
+                  handleAddNode({ name: fileName, type: 'file' });
+                }
+              }}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-pink-500/20 to-purple-600/20 border border-pink-500/30 hover:border-pink-500/50 text-pink-400 hover:from-pink-500/30 hover:to-purple-600/30 transition-all duration-200"
             >
-              <h2 className="text-white font-medium flex items-center gap-2">
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-blue-300 to-cyan-300">
-                  Files
-                </span>
-                <span className="px-2 py-0.5 rounded-full text-xs bg-gradient-to-r from-purple-500/25 via-blue-500/25 to-cyan-500/25 text-white/90 border border-white/15">
-                  Live
-                </span>
-              </h2>
-            </motion.div>
-            <FileExplorer
-              fileTree={Object.keys(files).map((name) => ({
+              <FiPlus className="w-3 h-3" />
+              <span className="text-xs font-medium">New</span>
+            </motion.button>
+          )}
+        </div>
+
+        {/* Panel Content */}
+        <div className="flex-1 overflow-hidden p-1">
+          {activeTab === 'files' && (
+            <div className="h-full bg-black/20 backdrop-blur-xl border border-pink-500/20 rounded-xl overflow-hidden">
+              <FileExplorer
+                fileTree={Object.keys(files).map((name) => ({
                 name,
                 type: 'file',
                 content: files[name]
               }))}
+              currentFile={currentFile}
               onFileClick={handleFileClick}
               onAdd={handleAddNode}
               onDelete={handleDeleteNode}
-              currentFile={currentFile}
-              socket={socketRef.current}
-              roomId={roomId}
-              className="p-4"
-              hideFolderActions={true}
+              className="h-full p-4"
             />
-          </div>
-        );
-      case 'chat':
-        return (
-          <div className="h-full flex flex-col bg-gradient-to-br from-purple-900/40 via-blue-900/30 to-cyan-800/25">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/8 via-blue-500/8 to-cyan-500/8"></div>
-            <motion.div 
-              className="p-4 border-b border-white/10 bg-gradient-to-r from-purple-500/15 via-blue-500/15 to-cyan-500/15 relative"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-            >
-              <h2 className="text-white font-medium flex items-center gap-2">
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-blue-300 to-cyan-300">
-                  Code Chat
-                </span>
-                <span className="px-2 py-0.5 rounded-full text-xs bg-gradient-to-r from-purple-500/25 via-blue-500/25 to-cyan-500/25 text-white/90 border border-white/15">
-                  Live
-                </span>
-              </h2>
-            </motion.div>
-            <div className="relative flex-1 overflow-hidden">
+            </div>
+          )}
+          
+          {activeTab === 'users' && (
+            <div className="h-full bg-black/20 backdrop-blur-xl border border-pink-500/20 rounded-xl overflow-hidden">
+              <UserList 
+                users={users} 
+                currentUser={state?.username}
+                className="h-full p-4" 
+              />
+            </div>
+          )}
+          
+          {activeTab === 'chat' && (
+            <div className="h-full bg-black/20 backdrop-blur-xl border border-pink-500/20 rounded-xl overflow-hidden">
+              <div className="h-full flex flex-col">
               <ChatBox
                 socket={socketRef.current}
                 roomId={roomId}
                 username={state?.username}
+                onMessageReceived={() => {
+                  // Reset unread count when in chat
+                  if (activeTab === 'chat') {
+                    setUnreadCount(0);
+                  }
+                }}
+                className="h-full"
+              />
+              </div>
+            </div>
+          )}
+          
+          {activeTab === 'copilot' && (
+            <div className="h-full bg-black/20 backdrop-blur-xl border border-pink-500/20 rounded-xl overflow-hidden">
+              <CopilotPanel
+                currentFile={currentFile}
+                code={code}
+                onCodeInsert={handleCodeInsert}
+                roomId={roomId}
+                className="h-full"
               />
             </div>
-          </div>
-        );
-      case 'copilot':
-        return (
-          <div className="h-full bg-gradient-to-br from-purple-900/40 via-blue-900/30 to-cyan-800/25 backdrop-blur-xl">
-            <motion.div 
-              className="p-4 border-b border-white/10 bg-gradient-to-r from-purple-500/15 via-blue-500/15 to-cyan-500/15"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-            >
-              <h2 className="text-white font-medium flex items-center gap-2">
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-blue-300 to-cyan-300">
-                  AI Assistant
-                </span>
-                <span className="px-2 py-0.5 rounded-full text-xs bg-gradient-to-r from-purple-500/25 via-blue-500/25 to-cyan-500/25 text-white/90 border border-white/15">
-                  Live
-                </span>
-              </h2>
-            </motion.div>
-            <CopilotPanel
-              currentFile={currentFile}
-              code={code}
-              onCodeInsert={handleCodeInsert}
-              roomId={roomId}
-              className="p-4"
-            />
-          </div>
-        );
-      case 'analytics':
-        return (
-          <div className="h-full bg-gradient-to-br from-purple-900/40 via-blue-900/30 to-cyan-800/25 backdrop-blur-xl">
-            <motion.div 
-              className="p-4 border-b border-white/10 bg-gradient-to-r from-purple-500/15 via-blue-500/15 to-cyan-500/15"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-            >
-              <h2 className="text-white font-medium flex items-center gap-2">
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-blue-300 to-cyan-300">
-                  Analytics Dashboard
-                </span>
-                <span className="px-2 py-0.5 rounded-full text-xs bg-gradient-to-r from-purple-500/25 via-blue-500/25 to-cyan-500/25 text-white/90 border border-white/15">
-                  Live
-                </span>
-              </h2>
-            </motion.div>
-            <AnalyticsDashboard
-              roomId={roomId}
-              className="p-4"
-            />
-          </div>
-        );
-      default:
-        return null;
-    }
+          )}
+        </div>
+      </div>
+    );
   };
 
   useEffect(() => {
@@ -907,49 +695,215 @@ const Editor = () => {
   }
 
   return (
-    <div className="h-screen overflow-hidden">
-      {/* Background */}
-      <div className="fixed inset-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/95 via-blue-900/90 to-cyan-800/85"></div>
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/8 via-blue-500/8 to-cyan-500/8 mix-blend-overlay"></div>
-        {/* Floating geometric elements for visual consistency */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-gradient-to-br from-cyan-400/20 to-blue-500/15 blur-3xl"></div>
-          <div className="absolute bottom-20 left-20 w-64 h-64 rounded-full bg-gradient-to-br from-purple-400/20 to-pink-500/15 blur-2xl"></div>
-        </div>
+    <div className="h-screen overflow-hidden bg-black">
+      {/* Animated background matching landing page */}
+      <div className="absolute inset-0 overflow-hidden">
+        {/* Grid pattern */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(236,72,153,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(236,72,153,0.03)_1px,transparent_1px)] bg-[size:20px_20px]"></div>
+        
+        {/* Animated geometric shapes */}
+        <div className="absolute top-20 left-20 w-32 h-32 bg-gradient-to-br from-pink-500/10 to-purple-600/10 rounded-3xl transform rotate-45 animate-pulse"></div>
+        <div className="absolute bottom-40 right-32 w-24 h-24 bg-gradient-to-br from-purple-500/10 to-pink-600/10 rounded-2xl transform -rotate-12 animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/4 w-16 h-16 bg-gradient-to-br from-pink-400/10 to-purple-500/10 rounded-xl transform rotate-12 animate-pulse delay-2000"></div>
+        
+        {/* Diagonal lines */}
+        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-pink-500/20 to-transparent transform rotate-12 origin-left"></div>
+        <div className="absolute bottom-0 right-0 w-full h-px bg-gradient-to-r from-transparent via-purple-500/20 to-transparent transform -rotate-12 origin-right"></div>
+        
+        {/* Radial glows */}
+        <div className="absolute top-10 right-10 w-96 h-96 bg-gradient-radial from-pink-500/5 via-pink-500/2 to-transparent rounded-full"></div>
+        <div className="absolute bottom-20 left-20 w-80 h-80 bg-gradient-radial from-purple-500/5 via-purple-500/2 to-transparent rounded-full"></div>
       </div>
 
       {/* Main Content */}
       <div className="relative flex h-full">
-        {/* Sidebar */}
+        {/* Minimal Sidebar */}
         <motion.div 
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="w-20 border-r border-white/10 bg-gradient-to-b from-purple-900/50 via-blue-900/40 to-cyan-800/30 backdrop-blur-xl z-20"
+          className="w-16 bg-black/80 backdrop-blur-xl border-r border-gray-800/50"
         >
           <Sidebar 
             activeTab={activeTab}
             setActiveTab={setActiveTab}
             unreadCount={unreadCount}
-            className="h-full"
           />
         </motion.div>
 
         {/* Main Editor Area */}
-        <div className="flex-1 flex">
-          {/* Left Panel */}
-          <motion.div 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="w-64 border-r border-white/10 bg-gradient-to-br from-purple-900/30 via-blue-900/25 to-cyan-800/20 backdrop-blur-xl overflow-y-auto overflow-x-hidden min-w-0 max-w-[256px]"
-          >
-            {renderLeftPanel()}
-          </motion.div>
+        <div className="flex-1 flex p-4 gap-4">
+          {/* Left Panel - Hidden when TlDraw is active */}
+          {activeTab !== 'draw' && (
+            <motion.div 
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="w-80 bg-black/30 backdrop-blur-xl border border-gray-800/30 rounded-2xl overflow-hidden shadow-xl shadow-black/20"
+            >
+              <div className="h-full overflow-y-auto">
+                {renderActiveTab()}
+              </div>
+            </motion.div>
+          )}
 
-          {/* Main Content Area */}
-          {renderMainContent()}
+          {/* Center Area - Code Editor or TlDraw */}
+          <div className="flex-1 flex flex-col bg-black/20 backdrop-blur-xl border border-gray-800/30 rounded-2xl overflow-hidden shadow-xl shadow-black/20">
+            {/* Header */}
+            <motion.div 
+              className="h-14 px-6 flex items-center justify-between border-b border-gray-800/30"
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="flex items-center gap-4">
+                <h1 className="text-white font-semibold text-lg">
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-600">
+                    Code
+                  </span>
+                  <span className="text-white">Unity</span>
+                </h1>
+                
+                {activeTab === 'draw' ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-gradient-to-r from-pink-500 to-purple-600 rounded-full animate-pulse"></div>
+                    <span className="px-3 py-1 rounded-lg bg-gray-900/50 border border-gray-700/30 text-sm text-gray-300">
+                      Collaborative Whiteboard
+                    </span>
+                  </div>
+                ) : currentFile && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-gradient-to-r from-pink-500 to-purple-600 rounded-full animate-pulse"></div>
+                    <span className="px-3 py-1 rounded-lg bg-gray-900/50 border border-gray-700/30 text-sm text-gray-300 font-mono">
+                      {currentFile}
+                    </span>
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowShareModal(true)}
+                  className="p-2.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 hover:border-purple-500/30 text-purple-400 transition-all duration-200 group"
+                  title="Share"
+                >
+                  <FaShare className="w-4 h-4 group-hover:animate-pulse" />
+                </motion.button>
+              </div>
+            </motion.div>
+
+            {/* Main Content Area */}
+            <div className="flex-1 p-4">
+              {activeTab === 'draw' ? (
+                /* TlDraw Whiteboard */
+                <div className="h-full rounded-lg border border-gray-800/20 overflow-hidden bg-black/30 backdrop-blur-sm shadow-lg">
+                  <TldrawWithRealtime
+                    socket={socketRef.current}
+                    roomId={roomId}
+                    isPersistent={true}
+                    className="h-full w-full"
+                  />
+                </div>
+              ) : (
+                /* Code Editor */
+                <div className="h-full rounded-lg border border-gray-800/20 overflow-hidden bg-black/30 backdrop-blur-sm shadow-lg">
+                  <CodeRunner 
+                    currentFile={currentFile} 
+                    code={code}
+                    onRunCode={handleRunCode}
+                  >
+                    <MonacoEditor
+                      height="100%"
+                      language={currentFile ? getLanguageFromFileName(currentFile) : 'javascript'}
+                      theme="vs-dark"
+                      defaultValue={code}
+                      onChange={(value) => {
+                        if (value !== code) handleCodeChanges(value);
+                      }}
+                      options={{
+                        minimap: { enabled: false },
+                        fontSize: 14,
+                        automaticLayout: true,
+                        background: 'rgba(0, 0, 0, 0.8)',
+                        padding: { top: 20, bottom: 20, left: 20, right: 20 },
+                        scrollbar: {
+                          vertical: 'visible',
+                          horizontal: 'visible',
+                          useShadows: false,
+                          verticalScrollbarSize: 8,
+                          horizontalScrollbarSize: 8
+                        },
+                        lineHeight: 1.6,
+                        letterSpacing: 0.5,
+                        fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+                        smoothScrolling: true,
+                        cursorBlinking: "smooth",
+                        cursorSmoothCaretAnimation: true,
+                        renderWhitespace: "none",
+                        glyphMargin: false,
+                        renderLineHighlight: "all",
+                        contextmenu: true,
+                        mouseWheelZoom: true,
+                        quickSuggestions: true,
+                        roundedSelection: true,
+                        wordWrap: "on",
+                        bracketPairColorization: { enabled: true },
+                        guides: {
+                          bracketPairs: true,
+                          indentation: true
+                        }
+                      }}
+                      key={currentFile}
+                    />
+                  </CodeRunner>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right Panel - Chat when TlDraw is active */}
+          {activeTab === 'draw' && (
+            <motion.div 
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="w-80 bg-black/20 backdrop-blur-xl border border-pink-500/20 rounded-xl overflow-hidden shadow-xl shadow-black/20"
+            >
+              <div className="h-full flex flex-col">
+                {/* Chat Header */}
+                <div className="flex items-center justify-between p-4 border-b border-gray-800/30 bg-pink-500/5">
+                  <div className="flex items-center gap-3">
+                    <FaComments className="w-4 h-4 text-pink-400" />
+                    <div>
+                      <span className="font-medium text-white text-sm">Code Chat</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="w-2 h-2 rounded-full bg-pink-500 animate-pulse"></div>
+                        <span className="text-xs text-gray-400">Live</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Chat Content */}
+                <div className="flex-1 overflow-hidden">
+                  <ChatBox
+                    socket={socketRef.current}
+                    roomId={roomId}
+                    username={state?.username}
+                    onMessageReceived={() => {
+                      // Reset unread count when in chat
+                      setUnreadCount(0);
+                    }}
+                    className="h-full"
+                  />
+                </div>
+              </div>
+            </motion.div>
+          )}
         </div>
       </div>
+      
+      {/* Notification Container */}
+      <NotificationContainer />
       
       {/* Notification Container */}
       <NotificationContainer />
@@ -968,14 +922,14 @@ const Editor = () => {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="bg-gradient-to-br from-purple-900/95 via-blue-900/95 to-cyan-800/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl max-w-md w-full"
+              className="bg-gray-900/95 backdrop-blur-xl border border-gray-700/30 rounded-2xl shadow-2xl max-w-md w-full"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="p-6">
                 {/* Modal Header */}
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-white font-semibold text-lg flex items-center gap-2">
-                    <FaShare className="text-cyan-400" />
+                    <FaShare className="text-pink-400" />
                     Share Room
                   </h3>
                   <button
@@ -987,7 +941,7 @@ const Editor = () => {
                 </div>
                 
                 {/* Room ID Display */}
-                <div className="mb-6 p-4 bg-black/30 rounded-lg border border-white/10">
+                <div className="mb-6 p-4 bg-black/30 rounded-lg border border-gray-700/30">
                   <p className="text-sm text-gray-400 mb-2">Room ID</p>
                   <p className="text-white font-mono text-sm break-all">{roomId}</p>
                 </div>
@@ -1000,12 +954,10 @@ const Editor = () => {
                   >
                     {copySuccess ? <FaCheck className="w-5 h-5" /> : <FaCopy className="w-5 h-5" />}
                     <span>
-                      {copySuccess ? 'Copied to Clipboard!' : 'Copy Room URL'}
+                      {copySuccess ? 'Copied to Clipboard!' : 'Copy Room ID'}
                     </span>
-                  </button>
-
-                  {/* Email Sharing Form */}
-                  <div className="border border-white/20 rounded-lg p-4 bg-black/20">
+                  </button>                    {/* Email Sharing Form */}
+                  <div className="border border-gray-700/30 rounded-lg p-4 bg-black/20">
                     <h4 className="text-white font-medium mb-3 flex items-center gap-2">
                       <FaEnvelope className="w-4 h-4" />
                       Send Email Invitation
@@ -1018,7 +970,7 @@ const Editor = () => {
                           placeholder="Recipient's email address *"
                           value={emailForm.recipientEmail}
                           onChange={(e) => setEmailForm(prev => ({ ...prev, recipientEmail: e.target.value }))}
-                          className="w-full px-3 py-2 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 border border-white/15 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                          className="w-full px-3 py-2 bg-gray-800/50 border border-gray-700/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500/30 focus:border-pink-500/30"
                           required
                         />
                       </div>
@@ -1029,7 +981,7 @@ const Editor = () => {
                           placeholder="Recipient's name (optional)"
                           value={emailForm.recipientName}
                           onChange={(e) => setEmailForm(prev => ({ ...prev, recipientName: e.target.value }))}
-                          className="w-full px-3 py-2 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 border border-white/15 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                          className="w-full px-3 py-2 bg-gray-800/50 border border-gray-700/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500/30 focus:border-pink-500/30"
                         />
                       </div>
                       
@@ -1039,7 +991,7 @@ const Editor = () => {
                           value={emailForm.message}
                           onChange={(e) => setEmailForm(prev => ({ ...prev, message: e.target.value }))}
                           rows={3}
-                          className="w-full px-3 py-2 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 border border-white/15 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 resize-none"
+                          className="w-full px-3 py-2 bg-gray-800/50 border border-gray-700/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500/30 focus:border-pink-500/30 resize-none"
                         />
                       </div>
                       
@@ -1048,15 +1000,15 @@ const Editor = () => {
                         disabled={emailSending || !emailForm.recipientEmail}
                         className={`w-full flex items-center justify-center gap-3 p-3 rounded-lg transition-all duration-300 ${
                           emailSuccess 
-                            ? 'bg-gradient-to-r from-green-500/30 to-emerald-500/30 border border-green-400/50 text-green-300'
+                            ? 'bg-green-500/20 border border-green-500/30 text-green-300'
                             : emailSending || !emailForm.recipientEmail
                             ? 'bg-gray-600/30 border border-gray-500/30 text-gray-400 cursor-not-allowed'
-                            : 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-400/30 text-blue-300 hover:from-blue-500/30 hover:to-purple-500/30 hover:border-blue-400/50'
+                            : 'bg-pink-500/10 border border-pink-500/20 text-pink-300 hover:bg-pink-500/20 hover:border-pink-500/30'
                         }`}
                       >
                         {emailSending ? (
                           <>
-                            <div className="w-5 h-5 border-2 border-blue-300 border-t-transparent rounded-full animate-spin"></div>
+                            <div className="w-5 h-5 border-2 border-pink-300 border-t-transparent rounded-full animate-spin"></div>
                             <span>Sending...</span>
                           </>
                         ) : emailSuccess ? (
@@ -1076,8 +1028,8 @@ const Editor = () => {
                 </div>
                 
                 {/* Instructions */}
-                <div className="mt-6 p-3 bg-cyan-500/10 border border-cyan-400/20 rounded-lg">
-                  <p className="text-cyan-300 text-sm">
+                <div className="mt-6 p-3 bg-pink-500/10 border border-pink-500/20 rounded-lg">
+                  <p className="text-pink-300 text-sm">
                     💡 Share the room URL with your team members to collaborate in real-time!
                   </p>
                 </div>
@@ -1086,13 +1038,6 @@ const Editor = () => {
           </motion.div>
         )}
       </AnimatePresence>
-      
-      {/* Analytics Dashboard Modal */}
-      <AnalyticsDashboard
-        roomId={roomId}
-        isVisible={showAnalytics}
-        onClose={() => setShowAnalytics(false)}
-      />
     </div>
   );
 };

@@ -21,7 +21,6 @@ const CopilotPanel = ({ currentFile, code, onCodeInsert, roomId }) => {
     loadChatHistory,
     saveMessage,
     saveMessages,
-    clearChatHistory: clearDbChatHistory,
     syncToLocalStorage
   } = useChatPersistence(roomId);
   
@@ -126,22 +125,6 @@ const CopilotPanel = ({ currentFile, code, onCodeInsert, roomId }) => {
     if (onCodeInsert && typeof onCodeInsert === 'function') {
       onCodeInsert(codeToInsert);
     }
-  };
-
-  // Clear all chat history
-  const clearChatHistory = async () => {
-    setResponses([]);
-    
-    if (roomId) {
-      try {
-        await clearDbChatHistory();
-      } catch (error) {
-        console.error('Failed to clear database chat history:', error);
-      }
-    }
-    
-    // Also clear localStorage
-    localStorage.removeItem('codeunity_ai_chat_history');
   };
 
   // Helper function to add a new response and manage chat history limits
@@ -274,65 +257,34 @@ const CopilotPanel = ({ currentFile, code, onCodeInsert, roomId }) => {
 
   const getResponseIcon = (type) => {
     switch (type) {
-      case 'question': return <FaRobot className="text-purple-300" size={16} />;
-      case 'answer': return <FaMagic className="text-blue-300" size={16} />;
-      case 'conversion': return <FaCode className="text-cyan-300" size={16} />;
+      case 'question': return <FaRobot className="text-pink-400" size={16} />;
+      case 'answer': return <FaMagic className="text-purple-400" size={16} />;
+      case 'conversion': return <FaCode className="text-cyan-400" size={16} />;
       case 'error': return <FaBug className="text-red-400" size={16} />;
-      default: return <FaRobot className="text-purple-300" size={16} />;
+      default: return <FaRobot className="text-pink-400" size={16} />;
     }
   };
 
   const getResponseStyle = (type) => {
     switch (type) {
       case 'question': 
-        return 'bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-cyan-500/20 border border-white/10';
+        return 'bg-pink-500/10 border-pink-500/20';
       case 'answer':
-        return 'bg-gradient-to-r from-blue-500/25 via-cyan-500/25 to-purple-500/25 border border-white/15';
+        return 'bg-purple-500/10 border-purple-500/20';
       case 'conversion':
-        return 'bg-gradient-to-r from-cyan-500/20 via-blue-500/20 to-indigo-500/20 border border-cyan-400/20';
+        return 'bg-cyan-500/10 border-cyan-500/20';
       case 'error':
-        return 'bg-gradient-to-r from-red-600/25 via-red-500/25 to-pink-500/25 border border-red-400/25';
+        return 'bg-red-500/10 border-red-500/20';
       default:
-        return 'bg-gradient-to-r from-blue-500/25 via-cyan-500/25 to-purple-500/25 border border-white/15';
+        return 'bg-purple-500/10 border-purple-500/20';
     }
   };
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-br from-purple-900/40 via-blue-900/30 to-cyan-800/25 text-white overflow-hidden">
-      <div className="flex items-center gap-2 p-4 border-b border-white/10 flex-shrink-0">
-        <FaRobot className="text-purple-300" size={20} />
-        <span className="font-medium">AI Assistant</span>
-        {aiStatus && (
-          <div className="ml-auto text-xs">
-            <span className={`px-2 py-1 rounded-full text-xs ${
-              aiStatus.currentService === 'openai' 
-                ? 'bg-green-500/20 text-green-300' 
-                : aiStatus.currentService === 'ollama'
-                ? 'bg-blue-500/20 text-blue-300'
-                : 'bg-yellow-500/20 text-yellow-300'
-            }`}>
-              {aiStatus.currentService === 'openai' && '🚀 Premium AI'}
-              {aiStatus.currentService === 'ollama' && '🆓 Free AI'}
-              {aiStatus.currentService === 'fallback' && '⚡ Basic'}
-            </span>
-          </div>
-        )}
-        {/* Clear Chat Button */}
-        {responses.length > 0 && (
-          <button
-            onClick={clearChatHistory}
-            className="ml-2 px-2 py-1 text-xs bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded border border-red-400/20 transition-all duration-200 flex items-center gap-1"
-            title="Clear chat history"
-          >
-            <FaTrash size={10} />
-            Clear
-          </button>
-        )}
-      </div>
-
+    <div className="flex flex-col h-full">
       {/* AI Status Info Panel */}
       {aiStatus && aiStatus.currentService === 'fallback' && (
-        <div className="p-3 bg-gradient-to-r from-yellow-500/20 via-orange-500/20 to-red-500/20 border-b border-orange-400/20">
+        <div className="p-3 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border-b border-orange-400/20">
           <div className="text-xs space-y-2">
             <div className="font-medium text-orange-300">🔥 Upgrade Your AI Experience!</div>
             <div className="text-orange-200/80">
@@ -343,41 +295,45 @@ const CopilotPanel = ({ currentFile, code, onCodeInsert, roomId }) => {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4 min-w-0">
+      {/* Chat Messages */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-3 min-w-0">
         {responses.length === 0 && (
-          <div className="text-center text-white/40 space-y-3 mt-8">
-            <FaRobot size={48} className="mx-auto text-purple-300/30" />
-            <p className="text-sm">Start a conversation with AI Assistant</p>
-            <p className="text-xs">Ask questions about your code or request programming help</p>
+          <div className="text-center text-gray-400 space-y-3 mt-8">
+            <FaRobot size={32} className="mx-auto text-pink-400/30" />
+            <p className="text-sm text-gray-300">Start a conversation with AI Assistant</p>
+            <p className="text-xs text-gray-500">Ask questions about your code or request programming help</p>
           </div>
         )}
         
         {responses.map((item, index) => (
-          <div key={index} className={`p-3 rounded-lg ${getResponseStyle(item.type)} transition-all duration-200 hover:scale-[1.01]`}>
+          <div 
+            key={index} 
+            className={`p-3 rounded-xl border transition-all duration-200 ${getResponseStyle(item.type)}`}
+          >
             <div className="flex items-start gap-2 mb-2">
               {getResponseIcon(item.type)}
-              <span className="text-xs text-white/60 capitalize font-medium">
+              <span className="text-xs text-gray-300 capitalize font-medium">
                 {item.type === 'question' ? 'You' : item.type}
               </span>
               {item.aiService && (
-                <span className="text-xs bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-purple-300 px-2 py-0.5 rounded-full border border-purple-400/20">
+                <span className="text-xs bg-pink-500/20 text-pink-300 px-2 py-0.5 rounded-full border border-pink-400/20">
                   {item.aiService === 'openai' ? '🤖 OpenAI' : item.aiService === 'ollama' ? '🆓 Ollama' : '⚡ Pattern'}
                 </span>
               )}
-              <span className="text-xs text-white/40 ml-auto">
+              <span className="text-xs text-gray-500 ml-auto">
                 {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
             </div>
-            <div className="text-sm whitespace-pre-wrap break-words overflow-hidden leading-relaxed">
+            <div className="text-sm whitespace-pre-wrap break-words overflow-hidden leading-relaxed text-gray-100">
               {item.content}
             </div>
             
             {/* Action buttons for code responses */}
             {item.type !== 'question' && item.content && (
-              <div className="mt-3 flex gap-2">
+              <div className="mt-3 flex gap-2 flex-wrap">
                 <button
                   onClick={() => copyToClipboard(item.content)}
-                  className="px-2 py-1 text-xs bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded border border-blue-400/20 transition-all duration-200 flex items-center gap-1"
+                  className="px-2 py-1 text-xs bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded-lg border border-blue-400/20 transition-all duration-200 flex items-center gap-1"
                 >
                   <FaCopy size={10} />
                   Copy
@@ -389,10 +345,10 @@ const CopilotPanel = ({ currentFile, code, onCodeInsert, roomId }) => {
                     onClick={() => {
                       const codeBlocks = extractCodeBlocks(item.content);
                       if (codeBlocks.length > 0) {
-                        insertCode(codeBlocks[0].code); // Insert the first code block
+                        insertCode(codeBlocks[0].code);
                       }
                     }}
-                    className="px-2 py-1 text-xs bg-green-500/20 hover:bg-green-500/30 text-green-300 rounded border border-green-400/20 transition-all duration-200 flex items-center gap-1"
+                    className="px-2 py-1 text-xs bg-green-500/20 hover:bg-green-500/30 text-green-300 rounded-lg border border-green-400/20 transition-all duration-200 flex items-center gap-1"
                   >
                     <FaDownload size={10} />
                     Insert
@@ -403,7 +359,7 @@ const CopilotPanel = ({ currentFile, code, onCodeInsert, roomId }) => {
                 {onCodeInsert && (item.type === 'completion' || item.type === 'conversion') && (
                   <button
                     onClick={() => insertCode(item.content)}
-                    className="px-2 py-1 text-xs bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded border border-purple-400/20 transition-all duration-200 flex items-center gap-1"
+                    className="px-2 py-1 text-xs bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded-lg border border-purple-400/20 transition-all duration-200 flex items-center gap-1"
                   >
                     <FaDownload size={10} />
                     Insert Code
@@ -415,35 +371,36 @@ const CopilotPanel = ({ currentFile, code, onCodeInsert, roomId }) => {
         ))}
         
         {isLoading && (
-          <div className="bg-gradient-to-r from-blue-500/25 via-cyan-500/25 to-purple-500/25 border border-white/15 p-3 rounded-lg">
+          <div className="bg-pink-500/10 border border-pink-500/20 p-3 rounded-xl">
             <div className="flex items-center gap-2 mb-2">
-              <FaSpinner className="text-blue-300 animate-spin" size={16} />
-              <span className="text-xs text-white/60 font-medium">AI Assistant</span>
+              <FaSpinner className="text-pink-400 animate-spin" size={16} />
+              <span className="text-xs text-gray-300 font-medium">AI Assistant</span>
             </div>
-            <div className="text-sm text-white/70">
+            <div className="text-sm text-gray-200">
               <span className="animate-pulse">Thinking...</span>
             </div>
           </div>
         )}
       </div>
 
-      <div className="p-4 border-t border-white/10 flex-shrink-0 space-y-3">
-        <form onSubmit={handleSubmit} className="flex gap-2 min-w-0">
+      {/* Input Form */}
+      <div className="p-4 border-t border-gray-800/30 bg-gradient-to-r from-pink-500/5 to-purple-500/5 space-y-3">
+        <form onSubmit={handleSubmit} className="flex gap-3 min-w-0">
           <input
             type="text"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder={currentFile ? `Ask about ${currentFile}...` : "Ask questions about your code..."}
-            className="flex-1 min-w-0 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 text-white rounded-xl px-4 py-2 border border-white/15 focus:outline-none focus:ring-2 focus:ring-purple-500/30 backdrop-blur-xl placeholder-white/40"
+            className="flex-1 min-w-0 bg-black/30 backdrop-blur-sm text-white rounded-lg px-4 py-3 border border-pink-500/20 focus:outline-none focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 placeholder-gray-400 transition-all duration-200"
             disabled={isLoading}
           />
           <button
             type="submit"
             disabled={!prompt.trim() || isLoading}
-            className={`px-4 py-2 rounded-xl flex items-center gap-2 transition-all duration-200 flex-shrink-0 ${
+            className={`px-5 py-3 rounded-lg flex items-center gap-2 transition-all duration-200 font-medium ${
               !prompt.trim() || isLoading
-                ? 'bg-gray-700/50 text-gray-400 cursor-not-allowed'
-                : 'bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 hover:opacity-90 text-white shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30'
+                ? 'bg-gray-700/30 text-gray-500 cursor-not-allowed border border-gray-600/30'
+                : 'bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white shadow-lg shadow-pink-500/20 border border-pink-500/30'
             }`}
           >
             {isLoading ? (
@@ -451,11 +408,15 @@ const CopilotPanel = ({ currentFile, code, onCodeInsert, roomId }) => {
             ) : (
               <FaPaperPlane size={14} />
             )}
+            <span className="hidden sm:inline">
+              {isLoading ? 'Sending...' : 'Send'}
+            </span>
           </button>
         </form>
         
-        <p className="text-xs text-white/40 break-words">
-          💡 Tip: Ask questions about your code or request help with programming tasks
+        <p className="text-xs text-gray-500 break-words flex items-center gap-2">
+          <span>💡</span>
+          <span>Ask questions about your code, request help, or try commands like "/convert python"</span>
         </p>
       </div>
     </div>

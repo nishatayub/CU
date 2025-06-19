@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { FaPaperPlane } from 'react-icons/fa';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FaPaperPlane, FaCircle } from 'react-icons/fa';
 
-const ChatBox = ({ socket, roomId, username }) => {
+const ChatBox = ({ socket, roomId, username, onMessageReceived }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [isConnected, setIsConnected] = useState(false);
@@ -26,40 +26,27 @@ const ChatBox = ({ socket, roomId, username }) => {
 
     // Listen for connection status changes
     const onConnect = () => {
-      console.log('Socket connected');
       setIsConnected(true);
-      // Request chat history when connected
       if (roomId) {
-        console.log('Requesting chat history for room:', roomId);
         socket.emit('get-chat-history', { roomId });
       }
     };
 
     const onDisconnect = () => {
-      console.log('Socket disconnected');
       setIsConnected(false);
     };
 
     // Listen for chat history
     const onChatHistory = (history) => {
-      console.log('Received chat history:', history);
       setMessages(history || []);
       setTimeout(scrollToBottom, 100);
     };
 
     // Listen for new messages
     const onReceiveMessage = (message) => {
-      console.log('Received message:', message);
       setMessages(prev => [...prev, message]);
       setTimeout(scrollToBottom, 50);
-    };
-
-    // Listen for chat notifications
-    const onChatNotification = (notification) => {
-      console.log('Received chat notification:', notification);
-      if (typeof window !== 'undefined' && document.hidden) {
-        // Optionally show browser notification
-      }
+      onMessageReceived?.();
     };
 
     // Add event listeners
@@ -67,11 +54,9 @@ const ChatBox = ({ socket, roomId, username }) => {
     socket.on('disconnect', onDisconnect);
     socket.on('chat-history', onChatHistory);
     socket.on('receive-message', onReceiveMessage);
-    socket.on('chat-notification', onChatNotification);
 
     // If already connected, request chat history
     if (socket.connected && roomId) {
-      console.log('Socket already connected, requesting chat history for room:', roomId);
       socket.emit('get-chat-history', { roomId });
     }
 
@@ -80,19 +65,12 @@ const ChatBox = ({ socket, roomId, username }) => {
       socket.off('disconnect', onDisconnect);
       socket.off('chat-history', onChatHistory);
       socket.off('receive-message', onReceiveMessage);
-      socket.off('chat-notification', onChatNotification);
     };
-  }, [socket, roomId, username]);
+  }, [socket, roomId, username, onMessageReceived]);
 
   const sendMessage = (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !socket || !isConnected) {
-      console.log('Cannot send message:', { 
-        hasMessage: !!newMessage.trim(), 
-        hasSocket: !!socket,
-        socketConnected: socket?.connected,
-        isConnected
-      });
       return;
     }
 
@@ -109,87 +87,101 @@ const ChatBox = ({ socket, roomId, username }) => {
   };
 
   return (
-    <div className="relative flex flex-col h-full bg-gradient-to-br from-purple-900/40 via-blue-900/30 to-cyan-800/25 max-w-full overflow-hidden">
-      {/* Connection status indicator */}
-      <div className="flex items-center justify-between p-3 border-b border-white/10 flex-shrink-0">
-        <span className="text-sm font-medium text-white">Chat</span>
-        <div className="flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400'}`}></div>
-          <span className={`text-xs ${isConnected ? 'text-green-300' : 'text-red-300'}`}>
-            {isConnected ? 'Connected' : 'Disconnected'}
-          </span>
-        </div>
-      </div>
-      
+    <div className="flex flex-col h-full bg-black/20 backdrop-blur-sm">
+      {/* Messages Area */}
       <div 
         ref={chatContainerRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-purple-500/30 scrollbar-track-transparent"
-        style={{ height: 'calc(100% - 120px)' }} // Account for header and input
+        className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-gray-600/30 scrollbar-track-transparent"
       >
-        {messages.map((msg, index) => (
+        <AnimatePresence>
+          {messages.map((msg, index) => (
+            <motion.div
+              key={`${msg.username}-${msg.timestamp}-${index}`}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className={`flex ${
+                msg.type === 'system' 
+                  ? 'justify-center' 
+                  : msg.username === username 
+                    ? 'justify-end' 
+                    : 'justify-start'
+              }`}
+            >
+              {msg.type === 'system' ? (
+                // System message
+                <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/30 rounded-full px-3 py-1">
+                  <div className="text-gray-400 text-xs text-center">
+                    {msg.text}
+                  </div>
+                </div>
+              ) : (
+                // User message
+                <div
+                  className={`max-w-[75%] group ${
+                    msg.username === username ? 'items-end' : 'items-start'
+                  }`}
+                >
+                  <div className={`text-xs text-gray-400 mb-1 px-1 ${
+                    msg.username === username ? 'text-right' : 'text-left'
+                  }`}>
+                    {msg.username === username ? 'You' : msg.username}
+                  </div>
+                  <div
+                    className={`p-3 rounded-2xl backdrop-blur-sm break-words ${
+                      msg.username === username
+                        ? 'bg-gradient-to-r from-pink-500/20 to-purple-600/20 border border-pink-500/30 text-white'
+                        : 'bg-gray-800/60 border border-gray-700/30 text-gray-100'
+                    }`}
+                  >
+                    {msg.text}
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          ))}
+        </AnimatePresence>
+        
+        {/* Connection Status */}
+        {!isConnected && (
           <motion.div
-            key={`${msg.username}-${msg.timestamp}-${index}`}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`flex ${
-              msg.type === 'system' 
-                ? 'justify-center' 
-                : msg.username === username 
-                  ? 'justify-end' 
-                  : 'justify-start'
-            }`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex items-center justify-center gap-2 py-2"
           >
-            {msg.type === 'system' ? (
-              // System message (join/leave notifications)
-              <div className="bg-gradient-to-r from-gray-500/20 via-gray-400/20 to-gray-500/20 backdrop-blur-xl border border-white/10 rounded-full px-4 py-2 shadow-lg">
-                <div className="text-white/80 text-sm text-center">
-                  {msg.text}
-                </div>
-              </div>
-            ) : (
-              // Regular user message
-              <div
-                className={`max-w-[80%] p-3 rounded-2xl ${
-                  msg.username === username
-                    ? 'bg-gradient-to-r from-purple-500/25 via-blue-500/25 to-cyan-500/25 ml-auto backdrop-blur-xl border border-white/15 shadow-lg shadow-purple-500/20'
-                    : 'bg-gradient-to-r from-pink-500/25 via-purple-500/25 to-blue-500/25 backdrop-blur-xl border border-white/15 shadow-lg shadow-pink-500/20'
-                }`}
-              >
-                <div className="text-xs text-gray-400 mb-1">
-                  {msg.username === username ? 'You' : msg.username}
-                </div>
-                <div className="text-white break-words">{msg.text}</div>
-              </div>
-            )}
+            <FaCircle className="w-2 h-2 text-red-400 animate-pulse" />
+            <span className="text-red-400 text-sm">Reconnecting...</span>
           </motion.div>
-        ))}
+        )}
       </div>
 
-      <form onSubmit={sendMessage} className="flex-shrink-0 p-2 bg-gradient-to-r from-purple-900/20 via-blue-900/15 to-cyan-800/10 border-t border-white/10">
-        <div className="flex items-center gap-1 w-full pr-1">
+      {/* Input Area */}
+      <div className="border-t border-gray-800/30 bg-gradient-to-r from-pink-500/5 to-purple-500/5 p-4">
+        <form onSubmit={sendMessage} className="flex gap-2">
           <input
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type a message..."
-            className="flex-1 min-w-0 max-w-[calc(100%-44px)] bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 backdrop-blur-xl border border-white/15 rounded-xl px-3 py-2 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
+            disabled={!isConnected}
+            className="flex-1 min-w-0 bg-black/30 backdrop-blur-sm text-white rounded-lg px-4 py-3 border border-pink-500/20 focus:outline-none focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 placeholder-gray-400 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           />
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             type="submit"
             disabled={!newMessage.trim() || !isConnected}
-            className={`w-10 h-10 flex-shrink-0 rounded-xl ${
+            className={`px-4 py-3 rounded-lg font-medium transition-all duration-200 flex-shrink-0 ${
               !newMessage.trim() || !isConnected
                 ? 'bg-gray-700/50 text-gray-400 cursor-not-allowed'
-                : 'bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 hover:opacity-90 text-white shadow-lg shadow-purple-500/20'
-            } text-white flex items-center justify-center transition-all duration-200 shadow-lg shadow-purple-500/25`}
-            aria-label="Send message"
+                : 'bg-gradient-to-r from-pink-500 to-purple-600 text-white hover:from-pink-600 hover:to-purple-700 shadow-lg shadow-pink-500/20'
+            }`}
           >
-            <FaPaperPlane size={14} />
+            <FaPaperPlane className="w-4 h-4" />
           </motion.button>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 };
