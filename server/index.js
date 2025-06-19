@@ -11,12 +11,111 @@ const aiRoutes = require('./routes/ai-gemini.js'); // Gemini-only AI router
 const aiChatRoutes = require('./routes/aiChat.js'); // AI chat persistence routes
 const emailRoutes = require('./routes/email.js'); // Email routes
 
-// Connect to MongoDB
+// Connect to MongoDB with enhanced production configuration
 const MONGODB_URI = process.env.MONGODB_URI;
+
+if (!MONGODB_URI) {
+  console.error('❌ MONGODB_URI environment variable is not set');
+  process.exit(1);
+}
+
+console.log('🔄 Attempting to connect to MongoDB...');
+console.log('📍 Environment:', process.env.NODE_ENV || 'development');
+
+// Enhanced MongoDB connection options for production stability
+const mongooseOptions = {
+  // Connection timeouts
+  serverSelectionTimeoutMS: 45000, // 45 seconds for server selection
+  connectTimeoutMS: 45000, // 45 seconds for initial connection
+  socketTimeoutMS: 45000, // 45 seconds for socket operations
+  
+  // Mongoose-specific buffering configuration
+  bufferCommands: false, // Disable mongoose buffering
+  
+  // Connection pool settings
+  maxPoolSize: 10, // Maximum number of connections
+  minPoolSize: 2, // Minimum number of connections
+  maxIdleTimeMS: 30000, // Close connections after 30 seconds of inactivity
+  
+  // Reliability settings
+  retryWrites: true, // Enable retryable writes
+  retryReads: true, // Enable retryable reads
+  w: 'majority', // Write concern
+  
+  // Heartbeat settings
+  heartbeatFrequencyMS: 10000 // Send heartbeat every 10 seconds
+};
+
 mongoose
-  .connect(MONGODB_URI)
-  .then(() => console.log('Connected to MongoDB'))
-  .catch((err) => console.error('MongoDB connection error:', err));
+  .connect(MONGODB_URI, mongooseOptions)
+  .then(() => {
+    console.log('✅ Connected to MongoDB successfully');
+    console.log('📡 Database connection is ready for requests');
+    console.log(`🔗 Connection state: ${mongoose.connection.readyState}`);
+  })
+  .catch((err) => {
+    console.error('❌ MongoDB connection error:', err.message);
+    console.error('� Full error:', err);
+    console.error('🔄 Application will exit and restart...');
+    setTimeout(() => {
+      process.exit(1); // Exit and let the platform restart the service
+    }, 3000);
+  });
+
+// Handle connection events with enhanced logging
+mongoose.connection.on('connected', () => {
+  console.log('🔗 Mongoose connected to MongoDB');
+  console.log(`📊 Connection state: ${mongoose.connection.readyState}`);
+});
+
+mongoose.connection.on('error', (err) => {
+  console.error('❌ Mongoose connection error:', err.message);
+  console.error('🔍 Error type:', err.name);
+  console.error('📊 Connection state:', mongoose.connection.readyState);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.log('🔌 Mongoose disconnected from MongoDB');
+  console.log('📊 Connection state:', mongoose.connection.readyState);
+});
+
+mongoose.connection.on('reconnected', () => {
+  console.log('🔄 Mongoose reconnected to MongoDB');
+  console.log('📊 Connection state:', mongoose.connection.readyState);
+});
+
+mongoose.connection.on('timeout', () => {
+  console.log('⏰ MongoDB connection timeout');
+});
+
+mongoose.connection.on('close', () => {
+  console.log('🚪 MongoDB connection closed');
+});
+
+// Graceful shutdown handling
+process.on('SIGINT', async () => {
+  console.log('🛑 Received SIGINT, gracefully shutting down...');
+  try {
+    await mongoose.connection.close();
+    console.log('✅ MongoDB connection closed');
+    process.exit(0);
+  } catch (err) {
+    console.error('❌ Error during shutdown:', err);
+    process.exit(1);
+  }
+});
+
+process.on('SIGTERM', async () => {
+  console.log('🛑 Received SIGTERM, gracefully shutting down...');
+  try {
+    await mongoose.connection.close();
+    console.log('✅ MongoDB connection closed');
+    process.exit(0);
+  } catch (err) {
+    console.error('❌ Error during shutdown:', err);
+    process.exit(1);
+  }
+});
 
 const app = express();
 const server = http.createServer(app);
@@ -34,6 +133,92 @@ app.use(
   })
 );
 app.use(express.json());
+
+// Enhanced health check endpoint
+app.get('/health', async (req, res) => {
+  const mongoStatus = mongoose.connection.readyState;
+  const statusMap = {
+    0: 'disconnected',
+    1: 'connected',
+    2: 'connecting',
+    3: 'disconnecting'
+  };
+  
+  // Test database connectivity
+  let dbTest = null;
+  try {
+    if (mongoStatus === 1) {
+      // Simple ping to test actual connectivity
+      await mongoose.connection.db.admin().ping();
+      dbTest = 'success';
+    } else {
+      dbTest = 'not_connected';
+    }
+  } catch (error) {
+    dbTest = `error: ${error.message}`;
+  }
+  
+  const healthData = {
+    status: mongoStatus === 1 ? 'healthy' : 'unhealthy',
+    timestamp: new Date().toISOString(),
+    mongodb: {
+      status: statusMap[mongoStatus] || 'unknown',
+      readyState: mongoStatus,
+      host: mongoose.connection.host,
+      name: mongoose.connection.name,
+      test: dbTest
+    },
+    server: {
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      env: process.env.NODE_ENV || 'development'
+    }
+  };
+  
+  const httpStatus = mongoStatus === 1 ? 200 : 503;
+  res.status(httpStatus).json(healthData);
+});
+
+// Database connection status endpoint
+app.get('/db-status', async (req, res) => {
+  try {
+    const mongoStatus = mongoose.connection.readyState;
+    if (mongoStatus !== 1) {
+      return res.status(503).json({
+        connected: false,
+        readyState: mongoStatus,
+        message: 'Database not connected'
+      });
+    }
+    
+    // Test with a simple operation
+    await mongoose.connection.db.admin().ping();
+    
+    res.json({
+      connected: true,
+      readyState: mongoStatus,
+      host: mongoose.connection.host,
+      name: mongoose.connection.name,
+      message: 'Database is connected and responsive'
+    });
+  } catch (error) {
+    res.status(503).json({
+      connected: false,
+      error: error.message,
+      message: 'Database connection test failed'
+    });
+  }
+});
+
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    message: 'CodeUnity API Server',
+    status: 'running',
+    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+  });
+});
+
 app.use('/api/files', fileRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/ai-chat', aiChatRoutes);

@@ -12,23 +12,49 @@ const FileExplorer = ({
 }) => {
   const [newItemName, setNewItemName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleCreate = (e) => {
+  const handleCreate = async (e) => {
     e.preventDefault();
-    if (newItemName.trim()) {
-      onAdd(newItemName.trim(), 'file');
-      setNewItemName('');
-      setIsCreating(false);
+    if (newItemName.trim() && !isLoading) {
+      setIsLoading(true);
+      try {
+        await onAdd(newItemName.trim(), 'file');
+        setNewItemName('');
+        setIsCreating(false);
+      } catch (error) {
+        console.error('Error creating file:', error);
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
   const cancelCreate = () => {
-    setIsCreating(false);
-    setNewItemName('');
+    if (!isLoading) {
+      setIsCreating(false);
+      setNewItemName('');
+    }
   };
 
   return (
     <div className={`h-full flex flex-col ${className}`}>
+      {/* Add File Button */}
+      {!isCreating && (
+        <div className="p-4 border-b border-pink-500/10">
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setIsCreating(true)}
+            disabled={isLoading}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-gradient-to-r from-pink-500/10 to-purple-600/10 border border-pink-500/20 text-pink-400 hover:from-pink-500/20 hover:to-purple-600/20 hover:border-pink-500/40 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <FiPlus className="w-4 h-4" />
+            <span className="font-medium">New File</span>
+          </motion.button>
+        </div>
+      )}
+
       {/* File Creation Form */}
       <AnimatePresence>
         {isCreating && (
@@ -44,24 +70,34 @@ const FileExplorer = ({
                 value={newItemName}
                 onChange={(e) => setNewItemName(e.target.value)}
                 placeholder="filename.js"
-                className="w-full bg-black/20 backdrop-blur-sm border border-pink-500/20 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all duration-200"
+                disabled={isLoading}
+                className="w-full bg-black/20 backdrop-blur-sm border border-pink-500/20 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 autoFocus
               />
               <div className="flex gap-2">
                 <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={!isLoading ? { scale: 1.02 } : {}}
+                  whileTap={!isLoading ? { scale: 0.98 } : {}}
                   type="submit"
-                  className="flex-1 px-3 py-2 rounded-lg bg-gradient-to-r from-pink-500 to-purple-600 text-white font-medium hover:from-pink-600 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-pink-500/20"
+                  disabled={isLoading}
+                  className="flex-1 px-3 py-2 rounded-lg bg-gradient-to-r from-pink-500 to-purple-600 text-white font-medium hover:from-pink-600 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-pink-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  Create
+                  {isLoading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      Creating...
+                    </>
+                  ) : (
+                    'Create'
+                  )}
                 </motion.button>
                 <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={!isLoading ? { scale: 1.02 } : {}}
+                  whileTap={!isLoading ? { scale: 0.98 } : {}}
                   type="button"
                   onClick={cancelCreate}
-                  className="px-3 py-2 rounded-lg bg-gray-700/30 text-gray-300 hover:bg-gray-600/30 border border-gray-600/30 transition-all duration-200"
+                  disabled={isLoading}
+                  className="px-3 py-2 rounded-lg bg-gray-700/30 text-gray-300 hover:bg-gray-600/30 border border-gray-600/30 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </motion.button>

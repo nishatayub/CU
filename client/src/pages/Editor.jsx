@@ -370,33 +370,54 @@ const Editor = () => {
     }
   }, [files, handleFileClick]); // Include handleFileClick in dependencies
 
-  const handleAddNode = async (fileName, type = 'file') => {
-    console.log('handleAddNode called with fileName:', fileName, 'type:', type);
-    console.log('roomId:', roomId);
-    console.log('BACKEND_URL:', BACKEND_URL);
+  const handleAddNode = async (fileName, type = 'file', retryCount = 0) => {
+    console.log('🚀 Creating file:', fileName, 'type:', type, 'retry:', retryCount);
+    console.log('📍 Room ID:', roomId);
+    console.log('🌐 Backend URL:', BACKEND_URL);
     
     if (!roomId) {
-      alert('Error: No room ID found. Please refresh the page and try again.');
+      alert('❌ Error: No room ID found. Please refresh the page and try again.');
       return;
     }
     
     if (!fileName || fileName.trim() === '') {
-      alert('Error: Please enter a valid filename.');
+      alert('❌ Error: Please enter a valid filename.');
       return;
     }
     
     try {
       const template = getTemplateForFile(fileName);
-      console.log('Generated template for', fileName, ':', template);
+      console.log('📄 Generated template for', fileName, ':', template?.substring(0, 50) + '...');
+      
+      console.log('🔄 Sending request to backend...');
+      
+      // Check server health first if this is a retry
+      if (retryCount > 0) {
+        try {
+          const healthCheck = await axios.get(`${BACKEND_URL}/health`, { timeout: 5000 });
+          console.log('🏥 Health check:', healthCheck.data);
+          if (healthCheck.data?.mongodb?.status !== 'connected') {
+            throw new Error('Database not ready');
+          }
+        } catch (healthError) {
+          console.warn('⚠️ Health check failed:', healthError.message);
+          throw new Error('Server not ready for requests');
+        }
+      }
       
       // First update MongoDB through the API
       const response = await axios.post(`${BACKEND_URL}/api/files/${roomId}`, {
         name: fileName,
         content: template,
         roomId
+      }, {
+        timeout: 35000, // 35 second timeout for production
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
 
-      console.log('API response:', response.data);
+      console.log('✅ API response received:', response.data);
 
       if (response.data.success) {
         // Update local state immediately
@@ -416,28 +437,66 @@ const Editor = () => {
         // Set as current file and update editor
         setCurrentFile(fileName);
         setCode(fileContent);
-        console.log('File created successfully:', fileName);
+        console.log('🎉 File created successfully:', fileName);
         
         // Show success message
-        alert(`File "${fileName}" created successfully!`);
+        alert(`✅ File "${fileName}" created successfully!`);
       } else {
-        console.error('API returned success: false', response.data);
-        alert(`Failed to create file: ${response.data.message || 'Unknown error'}`);
+        console.error('❌ API returned success: false', response.data);
+        alert(`❌ Failed to create file: ${response.data.message || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('Error creating file:', error);
-      console.error('Error details:', error.response?.data);
+      console.error('❌ Error creating file:', error);
+      console.error('🔍 Error details:', error.response?.data);
       
-      if (error.response) {
+      let errorMessage = 'Failed to create file.';
+      let shouldRetry = false;
+      
+      if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+        errorMessage = '⏱️ Request timed out. The server might be starting up or under heavy load.';
+        shouldRetry = true;
+      } else if (error.response) {
         // Server responded with error status
-        alert(`Server error: ${error.response.data?.message || error.message}`);
+        const serverError = error.response.data;
+        if (serverError?.type === 'MongoTimeoutError' || serverError?.message?.includes('timeout')) {
+          errorMessage = '🔄 Database is busy or starting up. This is common in serverless environments.';
+          shouldRetry = serverError?.retry !== false;
+        } else if (serverError?.message?.includes('connection') || serverError?.message?.includes('network')) {
+          errorMessage = '🔌 Database connection issue. Retrying...';
+          shouldRetry = serverError?.retry !== false;
+        } else if (serverError?.message?.includes('unavailable')) {
+          errorMessage = '🚫 Database temporarily unavailable. Please wait a moment.';
+          shouldRetry = true;
+        } else {
+          errorMessage = `🚫 Server error: ${serverError?.message || error.message}`;
+          shouldRetry = serverError?.retry === true;
+        }
       } else if (error.request) {
         // Request was made but no response received
-        alert('Network error: Unable to reach the server. Please check if the backend is running.');
+        errorMessage = '🌐 Network error: Unable to reach the server. Please check your connection.';
+        shouldRetry = true;
+      } else if (error.message === 'Server not ready for requests') {
+        errorMessage = '🔧 Server is starting up. Please wait a moment.';
+        shouldRetry = true;
       } else {
         // Something else happened
-        alert(`Error: ${error.message}`);
+        errorMessage = `⚠️ Unexpected error: ${error.message}`;
       }
+      
+      // Offer retry for certain errors
+      if (shouldRetry && retryCount < 2) {
+        const retryMessage = `${errorMessage}\n\nWould you like to try again? (Attempt ${retryCount + 1}/3)`;
+        if (confirm(retryMessage)) {
+          console.log(`🔄 Retrying file creation... (attempt ${retryCount + 1})`);
+          // Wait a bit before retrying
+          await new Promise(resolve => setTimeout(resolve, 2000 + (retryCount * 1000)));
+          return handleAddNode(fileName, type, retryCount + 1);
+        }
+      } else if (retryCount >= 2) {
+        errorMessage = `❌ Failed to create file after 3 attempts. This might be due to server startup delays in production. Please wait a few minutes and try again.`;
+      }
+      
+      alert(errorMessage);
     }
   };
 
