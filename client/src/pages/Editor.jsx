@@ -924,7 +924,7 @@ const Editor = () => {
             <motion.div 
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="w-80 bg-black/20 backdrop-blur-xl border border-pink-500/20 rounded-xl overflow-hidden shadow-xl shadow-black/20"
+              className="w-80 bg-black/20 backdrop-blur-xl border-2 border-pink-500/40 rounded-xl overflow-hidden shadow-xl shadow-black/20"
             >
               <div className="h-full flex flex-col">
                 {/* Chat Header */}
